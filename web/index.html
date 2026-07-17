@@ -67,6 +67,36 @@
   #output .err { color: #ff7b72; }
   #output .pass { color: #7ee787; }
   #output .fail { color: #ff7b72; }
+  #coin-count {
+    font-size: 13px; font-weight: 600; color: #9a6700; background: #fff8c5;
+    border: 1px solid #d4a72c66; border-radius: 999px; padding: 3px 10px;
+  }
+  /* ---------- 赛利亚 ---------- */
+  #mascot {
+    position: fixed; left: 12px; bottom: 10px; width: 206px; z-index: 60;
+    pointer-events: none; text-align: center;
+  }
+  #bubble {
+    background: #fff; border: 2px solid #f2a5c0; border-radius: 12px;
+    padding: 8px 10px; font-size: 12.5px; line-height: 1.5; color: #57414b;
+    box-shadow: 0 4px 12px rgba(0,0,0,.12); margin-bottom: 6px; position: relative;
+    text-align: left;
+  }
+  #bubble::after {
+    content: ""; position: absolute; bottom: -8px; left: 50%; margin-left: -6px;
+    border: 6px solid transparent; border-top-color: #f2a5c0; border-bottom: none;
+  }
+  #mascot svg { width: 96px; height: auto; filter: drop-shadow(0 3px 6px rgba(0,0,0,.15)); }
+  #mascot.celebrate svg { animation: bounce .5s ease 2; }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-14px) rotate(-3deg); }
+    70% { transform: translateY(0) scale(1.05, .95); }
+  }
+  .coin {
+    position: fixed; font-size: 24px; z-index: 99; pointer-events: none;
+    left: 0; top: 0; will-change: transform, opacity;
+  }
 </style>
 </head>
 <body>
@@ -81,12 +111,48 @@
   <section id="playground">
     <div id="toolbar">
       <button id="run-btn" disabled>▶ 运行</button>
-      <button id="reset-btn">重置代码</button>
+      <button id="exercise-btn" title="把本章 exercises.py 载入编辑器,补全 TODO 后运行,做对就爆金币!">📘 载入本章练习</button>
+      <button id="reset-btn">示例代码</button>
+      <span id="coin-count">💰 0</span>
       <span id="status">正在加载 Python 运行环境(首次约 10~30 秒)...</span>
     </div>
     <textarea id="editor" spellcheck="false"></textarea>
     <div id="output">这里显示运行结果。左边看笔记,上面写代码,点"运行"直接在浏览器里执行 Python。</div>
   </section>
+</div>
+
+<div id="mascot">
+  <div id="bubble">欢迎回来,勇士!</div>
+  <svg viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg" aria-label="赛利亚">
+    <!-- 后发 -->
+    <path d="M60 6 C26 6 16 34 19 62 C21 82 12 100 22 108 C31 114 39 102 39 90 L81 90 C81 102 89 114 98 108 C108 100 99 82 101 62 C104 34 94 6 60 6 Z" fill="#f78fb3"/>
+    <!-- 双马尾 -->
+    <path d="M20 70 C8 78 6 100 14 116 C20 108 22 92 24 84 Z" fill="#f78fb3"/>
+    <path d="M100 70 C112 78 114 100 106 116 C100 108 98 92 96 84 Z" fill="#f78fb3"/>
+    <!-- 脸 -->
+    <ellipse cx="60" cy="54" rx="27" ry="25" fill="#ffe9dc"/>
+    <!-- 刘海 -->
+    <path d="M33 52 C33 26 45 14 60 14 C75 14 87 26 87 52 C82 40 76 32 60 32 C44 32 38 40 33 52 Z" fill="#fa9db9"/>
+    <!-- 头饰 -->
+    <path d="M38 20 C46 12 74 12 82 20 C74 16 46 16 38 20 Z" fill="#fff" stroke="#eee"/>
+    <circle cx="60" cy="13" r="4" fill="#fff"/>
+    <!-- 眼睛 -->
+    <ellipse cx="49" cy="56" rx="4.5" ry="6" fill="#5b4636"/>
+    <ellipse cx="71" cy="56" rx="4.5" ry="6" fill="#5b4636"/>
+    <circle cx="50.5" cy="53.5" r="1.6" fill="#fff"/>
+    <circle cx="72.5" cy="53.5" r="1.6" fill="#fff"/>
+    <!-- 腮红 -->
+    <ellipse cx="42" cy="64" rx="4" ry="2.5" fill="#ffc4cc"/>
+    <ellipse cx="78" cy="64" rx="4" ry="2.5" fill="#ffc4cc"/>
+    <!-- 微笑 -->
+    <path d="M55 68 Q60 72 65 68" stroke="#c96" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <!-- 身体: 裙子 + 围裙 -->
+    <path d="M45 88 L75 88 L84 128 L36 128 Z" fill="#4a5a8a"/>
+    <path d="M50 90 L70 90 L75 122 L45 122 Z" fill="#fff"/>
+    <!-- 手 -->
+    <circle cx="38" cy="104" r="5" fill="#ffe9dc"/>
+    <circle cx="82" cy="104" r="5" fill="#ffe9dc"/>
+  </svg>
 </div>
 
 <script>
@@ -225,6 +291,97 @@ function renderMarkdown(md) {
 let pyodide = null;
 let currentChapter = CHAPTERS[0].dir;
 
+// ---------- 金币系统 ----------
+let coins = parseInt(localStorage.getItem("coins") || "0", 10);
+function updateCoinCount() {
+  $("coin-count").textContent = "💰 " + coins;
+  localStorage.setItem("coins", String(coins));
+}
+
+function coinBurst(n) {
+  const rect = $("output").getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + 40;
+  for (let i = 0; i < Math.min(n, 40); i++) {
+    const el = document.createElement("div");
+    el.className = "coin";
+    el.textContent = "🪙";
+    document.body.appendChild(el);
+    const dx = (Math.random() - 0.5) * 360;
+    const peak = -(90 + Math.random() * 190);
+    const rot = (Math.random() - 0.5) * 540;
+    const dur = 800 + Math.random() * 600;
+    el.animate([
+      { transform: `translate(${cx}px, ${cy}px) scale(.5)`, opacity: 1 },
+      { transform: `translate(${cx + dx * .6}px, ${cy + peak}px) scale(1.25) rotate(${rot * .5}deg)`,
+        opacity: 1, offset: .45 },
+      { transform: `translate(${cx + dx}px, ${cy + 180}px) scale(.8) rotate(${rot}deg)`, opacity: 0 },
+    ], { duration: dur, easing: "cubic-bezier(.2,.7,.4,1)", delay: i * 25 })
+      .onfinish = () => el.remove();
+  }
+}
+
+function coinSound(times) {
+  try {
+    coinSound.ctx = coinSound.ctx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = coinSound.ctx;
+    for (let i = 0; i < Math.min(times, 6); i++) {
+      const t = ctx.currentTime + i * 0.1;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "square";
+      o.frequency.setValueAtTime(988, t);          // B5
+      o.frequency.setValueAtTime(1319, t + 0.07);  // E6 —— 经典"金币"两连音
+      g.gain.setValueAtTime(0.08, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      o.connect(g).connect(ctx.destination);
+      o.start(t);
+      o.stop(t + 0.32);
+    }
+  } catch (e) { /* 浏览器不允许自动播放时静默跳过 */ }
+}
+
+// ---------- 赛利亚 ----------
+const SERIA = {
+  greet: [
+    "欢迎回来,勇士!今天也一起攻略 pandas 吧!",
+    "勇士,准备好了吗?左边是秘籍,右边是修炼场!",
+    "又见面了,勇士!点『载入本章练习』开始今天的冒险吧!",
+  ],
+  run: ["看你的了,勇士!", "深呼吸——运行!", "赛利亚在旁边看着呢,加油!"],
+  allPass: [
+    "全部通过!勇士,你就是传说中的数据分析师!",
+    "太漂亮了!这波操作赛利亚给满分!",
+    "完美通关!金币全部拿走,不用客气!",
+  ],
+  somePass: [
+    "已经对了 {p} 题了,剩下的也没问题的!",
+    "离全部通过只差一点点,看看 Failed 那题的预期和实际!",
+    "又进步了!翻翻左边的笔记,下一题也能拿下!",
+  ],
+  allFail: [
+    "别灰心,勇士!左边的笔记里藏着答案哦!",
+    "万事开头难,赛利亚相信你!",
+  ],
+  error: [
+    "呀,代码报错了……看看红色的提示,勇士你可以的!",
+    "别怕报错,报错信息就是线索!从最后一行读起!",
+  ],
+  plain: ["运行完成!想做题的话,点『载入本章练习』,做对有金币哦!"],
+};
+function seriaSay(kind, ctx = {}) {
+  const pool = SERIA[kind] || SERIA.greet;
+  let line = pool[Math.floor(Math.random() * pool.length)];
+  line = line.replace("{p}", ctx.p ?? "");
+  $("bubble").textContent = line;
+  if (kind === "allPass" || kind === "somePass") {
+    const m = $("mascot");
+    m.classList.remove("celebrate");
+    void m.offsetWidth;   // 重新触发动画
+    m.classList.add("celebrate");
+  }
+}
+
 // ---------- 章节切换 ----------
 function buildSidebar() {
   const list = $("chapter-list");
@@ -285,6 +442,14 @@ async function initPyodide() {
     } catch (e) { /* 数据没生成时忽略,页面里会提示 */ }
   }
 
+  // 把校验工具也放进去,这样章节的 exercises.py 可以直接在网页里运行
+  try {
+    const resp = await fetch("../_check_utils.py");
+    if (resp.ok) pyodide.FS.writeFile("_check_utils.py", await resp.text());
+  } catch (e) { /* ignore */ }
+  // exercises.py 里用到了 __file__,浏览器环境里预先定义好
+  pyodide.globals.set("__file__", "exercises.py");
+
   pyodide.setStdout({ batched: (line) => appendOutput(line) });
   pyodide.setStderr({ batched: (line) => appendOutput(line, "err") });
 
@@ -297,20 +462,57 @@ async function runCode() {
   $("output").textContent = "";
   $("run-btn").disabled = true;
   $("status").textContent = "运行中...";
+  seriaSay("run");
+  let hadError = false;
   try {
+    // 每次运行前重置校验计数,避免多次运行累加
+    pyodide.runPython(
+      'import sys\n' +
+      'if "_check_utils" in sys.modules:\n' +
+      '    sys.modules["_check_utils"]._total = 0\n' +
+      '    sys.modules["_check_utils"]._passed = 0\n'
+    );
     await pyodide.runPythonAsync($("editor").value);
     appendOutput("\n--- 运行完成 ---");
   } catch (e) {
+    hadError = true;
     appendOutput(String(e), "err");
   } finally {
     $("run-btn").disabled = false;
     $("status").textContent = "环境就绪 ✓ (Ctrl+Enter 运行)";
   }
+
+  // ---------- 正反馈: 数一数这次运行通过了几题 ----------
+  const text = $("output").textContent;
+  const pass = (text.match(/结果: Pass!/g) || []).length;
+  const fail = (text.match(/结果: Failed\./g) || []).length;
+  if (pass > 0) {
+    coins += pass;
+    updateCoinCount();
+    coinBurst(pass * 4);
+    coinSound(pass);
+  }
+  if (hadError) seriaSay("error");
+  else if (pass > 0 && fail === 0) seriaSay("allPass");
+  else if (pass > 0) seriaSay("somePass", { p: pass });
+  else if (fail > 0) seriaSay("allFail");
+  else seriaSay("plain");
 }
 
 // ---------- 事件 ----------
 $("run-btn").onclick = runCode;
 $("reset-btn").onclick = () => { $("editor").value = STARTER[currentChapter] || ""; };
+$("exercise-btn").onclick = async () => {
+  try {
+    const resp = await fetch(`../${currentChapter}/exercises.py`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    $("editor").value = await resp.text();
+    seriaSay("greet");
+    $("bubble").textContent = "练习已载入!把 TODO 补全后点运行,做对一题掉一枚金币哦!";
+  } catch (e) {
+    $("bubble").textContent = "练习加载失败了……确认服务器是在项目根目录启动的吗?";
+  }
+};
 $("editor").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runCode(); }
   if (e.key === "Tab") {  // Tab 输入 4 个空格而不是跳出输入框
@@ -323,6 +525,8 @@ $("editor").addEventListener("keydown", (e) => {
 
 buildSidebar();
 selectChapter(CHAPTERS[0].dir);
+updateCoinCount();
+seriaSay("greet");
 initPyodide().catch((e) => { $("status").textContent = "环境加载失败: " + e; });
 </script>
 </body>
