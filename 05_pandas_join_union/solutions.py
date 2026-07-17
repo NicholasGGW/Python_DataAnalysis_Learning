@@ -48,9 +48,9 @@ if __name__ == "__main__":
     check_eq("inner_join 行数(孤儿订单被排除)", len(ij), len(ref_ij))
 
     lj = left_join_orders_customers(orders, customers)
-    check_eq("left_join 行数(等于 orders 行数)", len(lj), len(orders))
-    check_eq("left_join 孤儿订单的 customer_name 是 NaN",
-              lj.loc[lj["customer_id"] == 999, "customer_name"].isna().all(), True)
+    check_eq("left_join (行数, 孤儿订单customer_name全是NaN)",
+              (len(lj), bool(lj.loc[lj["customer_id"] == 999, "customer_name"].isna().all())),
+              (len(orders), True))
 
     jt = join_three_tables(orders, customers, products)
     check_eq("join_three_tables 列名", list(jt.columns),

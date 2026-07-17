@@ -1,7 +1,15 @@
 """
-所有章节的 exercises.py 共用的小校验工具。
-不用管这个文件里的实现细节,你只需要知道:
-每道题写完后,运行该章节的 exercises.py,就会看到 PASS / FAIL 的结果。
+所有章节的 exercises.py 共用的校验工具。
+
+规则:
+- 每道题对应一次 check_eq 调用,所以最后的统计就是"通过题数 / 总题数"。
+- 不管通过与否,每道题都会打印出预期值和实际值,方便对照排错。
+
+输出格式:
+    [exercise1]
+    预期: ...
+    实际: ...
+    结果: Pass!  (或 Failed.)
 """
 
 import os
@@ -12,34 +20,30 @@ _total = 0
 _passed = 0
 
 
-def check(name, condition):
-    """打印一道题的校验结果。condition 为 True 表示通过。"""
-    global _total, _passed
-    _total += 1
-    if condition:
-        _passed += 1
-        print(f"[PASS] {name}")
-    else:
-        print(f"[FAIL] {name}")
-    return condition
-
-
 def check_eq(name, actual, expected):
-    """校验 actual 是否等于 expected(自动打印出两者方便你排错)。"""
+    """校验一道题: actual 是否等于 expected。每道题只调用一次。"""
+    global _total, _passed
     ok = actual == expected
-    # 有些结果(比如 DataFrame/Series)比较结果不是单个 bool,这里做个兼容
+    # DataFrame/Series/ndarray 的 == 返回的不是单个 bool,这里做兼容
     try:
         ok = bool(ok)
-    except ValueError:
-        ok = bool(ok.all()) if hasattr(ok, "all") else bool(ok)
-    if not ok:
-        print(f"      期望: {expected!r}")
-        print(f"      实际: {actual!r}")
-    return check(name, ok)
+    except (ValueError, TypeError):
+        ok = bool(ok.all()) if hasattr(ok, "all") else False
+
+    _total += 1
+    if ok:
+        _passed += 1
+
+    print(f"[{name}]")
+    print(f"预期: {expected!r}")
+    print(f"实际: {actual!r}")
+    print(f"结果: {'Pass!' if ok else 'Failed.'}")
+    print()
+    return ok
 
 
 def summary():
-    print("-" * 40)
+    print("=" * 40)
     print(f"通过 {_passed} / {_total} 题")
     if _passed == _total and _total > 0:
         print("全部通过,可以进入下一章了。")
