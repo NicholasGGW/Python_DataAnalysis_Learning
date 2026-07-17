@@ -58,21 +58,18 @@ if __name__ == "__main__":
 
     cbs = count_by_status(orders)
     ref_cbs = orders.groupby("status").size().reset_index(name="cnt")
-    check_eq("count_by_status 列名", list(cbs.columns) if cbs is not None else None, ["status", "cnt"])
     check_eq(
-        "count_by_status 数值",
+        "count_by_status",
         cbs.sort_values("status").reset_index(drop=True).to_dict() if cbs is not None else None,
         ref_cbs.sort_values("status").reset_index(drop=True).to_dict(),
     )
 
     tqc = total_qty_by_customer(orders)
     ref_tqc = orders.groupby("customer_id")["quantity"].sum().reset_index(name="total_qty")
-    check_eq("total_qty_by_customer 列名", list(tqc.columns) if tqc is not None else None,
-              ["customer_id", "total_qty"])
     check_eq(
-        "total_qty_by_customer 行数",
-        len(tqc) if tqc is not None else None,
-        len(ref_tqc),
+        "total_qty_by_customer",
+        tqc.sort_values("customer_id").reset_index(drop=True).to_dict() if tqc is not None else None,
+        ref_tqc.sort_values("customer_id").reset_index(drop=True).to_dict(),
     )
 
     mabs = multi_agg_by_status(orders)

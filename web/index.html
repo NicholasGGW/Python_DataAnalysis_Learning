@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Python 数据分析学习(SQL 对照版)</title>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    display: flex; height: 100vh; overflow: hidden; color: #24292f; background: #fff;
+  }
+  #sidebar {
+    width: 230px; flex-shrink: 0; background: #f6f8fa; border-right: 1px solid #d0d7de;
+    padding: 16px 8px; overflow-y: auto;
+  }
+  #sidebar h1 { font-size: 15px; padding: 0 8px 12px; }
+  #sidebar button {
+    display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 4px;
+    border: none; background: transparent; border-radius: 6px; cursor: pointer;
+    font-size: 13px; color: #24292f;
+  }
+  #sidebar button:hover { background: #eaeef2; }
+  #sidebar button.active { background: #0969da; color: #fff; }
+  #main { flex: 1; display: flex; overflow: hidden; }
+  #notes {
+    flex: 1; overflow-y: auto; padding: 24px 32px; max-width: 55%;
+    border-right: 1px solid #d0d7de;
+  }
+  #notes h1 { font-size: 22px; margin: 0 0 16px; }
+  #notes h2 { font-size: 17px; margin: 24px 0 8px; padding-top: 12px; border-top: 1px solid #eee; }
+  #notes p, #notes li { font-size: 14px; line-height: 1.7; margin: 8px 0; }
+  #notes pre {
+    background: #f6f8fa; padding: 12px; border-radius: 6px; overflow-x: auto;
+    font-size: 13px; margin: 10px 0;
+  }
+  #notes code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px;
+    background: #f0f1f3; padding: 1px 4px; border-radius: 4px; }
+  #notes pre code { background: none; padding: 0; }
+  #notes table { border-collapse: collapse; margin: 10px 0; font-size: 13px; }
+  #notes th, #notes td { border: 1px solid #d0d7de; padding: 6px 12px; }
+  #notes th { background: #f6f8fa; }
+  #playground { flex: 1; display: flex; flex-direction: column; min-width: 40%; }
+  #toolbar {
+    padding: 8px 12px; border-bottom: 1px solid #d0d7de; background: #f6f8fa;
+    display: flex; gap: 8px; align-items: center;
+  }
+  #toolbar button {
+    padding: 6px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;
+  }
+  #run-btn { background: #1f883d; color: #fff; font-weight: 600; }
+  #run-btn:disabled { background: #94d3a2; cursor: wait; }
+  #reset-btn { background: #eaeef2; }
+  #status { font-size: 12px; color: #57606a; margin-left: auto; }
+  #editor {
+    flex: 1; width: 100%; border: none; resize: none; padding: 12px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px;
+    line-height: 1.6; outline: none; background: #fff; color: #24292f;
+    min-height: 200px;
+  }
+  #output {
+    height: 40%; overflow-y: auto; background: #0d1117; color: #e6edf3;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px;
+    padding: 12px; white-space: pre-wrap; border-top: 2px solid #d0d7de;
+  }
+  #output .err { color: #ff7b72; }
+  #output .pass { color: #7ee787; }
+  #output .fail { color: #ff7b72; }
+</style>
+</head>
+<body>
+
+<nav id="sidebar">
+  <h1>📊 Python 数据分析<br>(SQL 对照版)</h1>
+  <div id="chapter-list"></div>
+</nav>
+
+<div id="main">
+  <article id="notes">加载中...</article>
+  <section id="playground">
+    <div id="toolbar">
+      <button id="run-btn" disabled>▶ 运行</button>
+      <button id="reset-btn">重置代码</button>
+      <span id="status">正在加载 Python 运行环境(首次约 10~30 秒)...</span>
+    </div>
+    <textarea id="editor" spellcheck="false"></textarea>
+    <div id="output">这里显示运行结果。左边看笔记,上面写代码,点"运行"直接在浏览器里执行 Python。</div>
+  </section>
+</div>
+
+<script>
+const CHAPTERS = [
+  { dir: "01_numpy",                 title: "1. numpy 基础" },
+  { dir: "02_pandas_basics",         title: "2. pandas 基础" },
+  { dir: "03_pandas_select_where",   title: "3. SELECT / WHERE" },
+  { dir: "04_pandas_groupby_having", title: "4. GROUP BY / HAVING" },
+  { dir: "05_pandas_join_union",     title: "5. JOIN / UNION" },
+  { dir: "06_pandas_advanced",       title: "6. CASE WHEN / NULL / 开窗" },
+];
+
+const STARTER = {
+  "01_numpy": `import numpy as np
+
+prices = np.array([9.9, 199.0, 599.0, 15.0, 120.5])
+
+# WHERE price > 100
+print(prices[prices > 100])
+
+# COUNT(*) WHERE price > 100
+print(int((prices > 100).sum()))
+`,
+  "02_pandas_basics": `import pandas as pd
+
+customers = pd.read_csv("data/customers.csv")
+
+print(customers.shape)     # (行数, 列数)
+print(customers.head())    # SELECT * FROM customers LIMIT 5
+`,
+  "03_pandas_select_where": `import pandas as pd
+
+orders = pd.read_csv("data/orders.csv")
+
+# SELECT * FROM orders WHERE status = 'completed' AND quantity > 2
+result = orders[(orders["status"] == "completed") & (orders["quantity"] > 2)]
+print(result.head(10))
+`,
+  "04_pandas_groupby_having": `import pandas as pd
+
+orders = pd.read_csv("data/orders.csv")
+
+# SELECT status, COUNT(*) AS cnt, SUM(quantity) AS total_qty
+# FROM orders GROUP BY status
+print(orders.groupby("status").agg(
+    cnt=("order_id", "count"),
+    total_qty=("quantity", "sum"),
+).reset_index())
+`,
+  "05_pandas_join_union": `import pandas as pd
+
+orders = pd.read_csv("data/orders.csv")
+customers = pd.read_csv("data/customers.csv")
+
+# orders LEFT JOIN customers ON customer_id
+joined = orders.merge(customers, on="customer_id", how="left")
+print(joined[["order_id", "customer_id", "customer_name", "status"]].head(10))
+`,
+  "06_pandas_advanced": `import numpy as np
+import pandas as pd
+
+orders = pd.read_csv("data/orders.csv")
+
+# CASE WHEN quantity >= 4 THEN 'high' WHEN quantity >= 2 THEN 'medium' ELSE 'low' END
+orders["qty_level"] = np.select(
+    [orders["quantity"] >= 4, orders["quantity"] >= 2],
+    ["high", "medium"], default="low")
+print(orders[["order_id", "quantity", "qty_level"]].head(10))
+`,
+};
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- 内置的极简 Markdown 渲染器(只覆盖 notes.md 用到的语法,不依赖外部库) ----------
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function renderInline(s) {
+  return escapeHtml(s)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+function renderMarkdown(md) {
+  const lines = md.split("\n");
+  const out = [];
+  let i = 0, para = [];
+  const flushPara = () => {
+    if (para.length) { out.push("<p>" + renderInline(para.join(" ")) + "</p>"); para = []; }
+  };
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith("```")) {                     // 代码块
+      flushPara();
+      const code = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) code.push(lines[i++]);
+      i++;
+      out.push("<pre><code>" + escapeHtml(code.join("\n")) + "</code></pre>");
+      continue;
+    }
+    const h = line.match(/^(#{1,6})\s+(.*)$/);        // 标题
+    if (h) {
+      flushPara();
+      out.push(`<h${h[1].length}>` + renderInline(h[2]) + `</h${h[1].length}>`);
+      i++; continue;
+    }
+    if (/^\|/.test(line) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {  // 表格
+      flushPara();
+      const cells = (l) => l.split("|").slice(1, -1).map((c) => c.trim());
+      let html = "<table><tr>" + cells(line).map((c) => `<th>${renderInline(c)}</th>`).join("") + "</tr>";
+      i += 2;
+      while (i < lines.length && /^\|/.test(lines[i])) {
+        html += "<tr>" + cells(lines[i]).map((c) => `<td>${renderInline(c)}</td>`).join("") + "</tr>";
+        i++;
+      }
+      out.push(html + "</table>");
+      continue;
+    }
+    if (/^[-*]\s+/.test(line)) {                      // 无序列表
+      flushPara();
+      let html = "<ul>";
+      while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
+        html += "<li>" + renderInline(lines[i].replace(/^[-*]\s+/, "")) + "</li>";
+        i++;
+      }
+      out.push(html + "</ul>");
+      continue;
+    }
+    if (line.trim() === "") { flushPara(); i++; continue; }
+    para.push(line.trim());
+    i++;
+  }
+  flushPara();
+  return out.join("\n");
+}
+let pyodide = null;
+let currentChapter = CHAPTERS[0].dir;
+
+// ---------- 章节切换 ----------
+function buildSidebar() {
+  const list = $("chapter-list");
+  CHAPTERS.forEach((ch) => {
+    const btn = document.createElement("button");
+    btn.textContent = ch.title;
+    btn.dataset.dir = ch.dir;
+    btn.onclick = () => selectChapter(ch.dir);
+    list.appendChild(btn);
+  });
+}
+
+async function selectChapter(dir) {
+  currentChapter = dir;
+  document.querySelectorAll("#chapter-list button").forEach((b) =>
+    b.classList.toggle("active", b.dataset.dir === dir));
+  $("editor").value = STARTER[dir] || "";
+  $("notes").innerHTML = "加载笔记中...";
+  try {
+    const resp = await fetch(`../${dir}/notes.md`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    $("notes").innerHTML = renderMarkdown(await resp.text());
+    $("notes").scrollTop = 0;
+  } catch (e) {
+    $("notes").innerHTML = `<p>笔记加载失败: ${e}。请确认是通过
+      <code>python -m http.server</code> 在项目根目录启动后访问的。</p>`;
+  }
+}
+
+// ---------- 输出 ----------
+function appendOutput(text, cls) {
+  const out = $("output");
+  const span = document.createElement("span");
+  if (cls) span.className = cls;
+  // 给校验结果加个颜色
+  if (!cls && /^结果: Pass!/.test(text)) span.className = "pass";
+  if (!cls && /^结果: Failed\./.test(text)) span.className = "fail";
+  span.textContent = text + "\n";
+  out.appendChild(span);
+  out.scrollTop = out.scrollHeight;
+}
+
+// ---------- Pyodide ----------
+async function initPyodide() {
+  if (typeof loadPyodide === "undefined") {
+    throw new Error("Pyodide 脚本未能从 CDN 加载,请检查网络后刷新页面(笔记阅读不受影响)");
+  }
+  pyodide = await loadPyodide();
+  $("status").textContent = "正在加载 numpy / pandas ...";
+  await pyodide.loadPackage(["numpy", "pandas"]);
+
+  // 把练习数据写进虚拟文件系统,这样 pd.read_csv("data/xxx.csv") 和本地跑一致
+  pyodide.FS.mkdirTree("data");
+  for (const name of ["customers.csv", "products.csv", "orders.csv"]) {
+    try {
+      const resp = await fetch(`../data/${name}`);
+      if (resp.ok) pyodide.FS.writeFile(`data/${name}`, await resp.text());
+    } catch (e) { /* 数据没生成时忽略,页面里会提示 */ }
+  }
+
+  pyodide.setStdout({ batched: (line) => appendOutput(line) });
+  pyodide.setStderr({ batched: (line) => appendOutput(line, "err") });
+
+  $("run-btn").disabled = false;
+  $("status").textContent = "环境就绪 ✓ (Ctrl+Enter 运行)";
+}
+
+async function runCode() {
+  if (!pyodide) return;
+  $("output").textContent = "";
+  $("run-btn").disabled = true;
+  $("status").textContent = "运行中...";
+  try {
+    await pyodide.runPythonAsync($("editor").value);
+    appendOutput("\n--- 运行完成 ---");
+  } catch (e) {
+    appendOutput(String(e), "err");
+  } finally {
+    $("run-btn").disabled = false;
+    $("status").textContent = "环境就绪 ✓ (Ctrl+Enter 运行)";
+  }
+}
+
+// ---------- 事件 ----------
+$("run-btn").onclick = runCode;
+$("reset-btn").onclick = () => { $("editor").value = STARTER[currentChapter] || ""; };
+$("editor").addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runCode(); }
+  if (e.key === "Tab") {  // Tab 输入 4 个空格而不是跳出输入框
+    e.preventDefault();
+    const t = e.target, s = t.selectionStart;
+    t.value = t.value.slice(0, s) + "    " + t.value.slice(t.selectionEnd);
+    t.selectionStart = t.selectionEnd = s + 4;
+  }
+});
+
+buildSidebar();
+selectChapter(CHAPTERS[0].dir);
+initPyodide().catch((e) => { $("status").textContent = "环境加载失败: " + e; });
+</script>
+</body>
+</html>

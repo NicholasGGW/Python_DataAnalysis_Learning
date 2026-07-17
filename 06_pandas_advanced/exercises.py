@@ -72,12 +72,12 @@ if __name__ == "__main__":
 
     q = add_qty_level(orders.copy()) if orders is not None else None
     if q is not None:
-        check_eq("add_qty_level high 判断正确",
-                  bool((q.loc[q["quantity"] >= 4, "qty_level"] == "high").all()), True)
-        check_eq("add_qty_level low 判断正确",
-                  bool((q.loc[q["quantity"] < 2, "qty_level"] == "low").all()), True)
+        check_eq("add_qty_level (high判断, low判断)",
+                  (bool((q.loc[q["quantity"] >= 4, "qty_level"] == "high").all()),
+                   bool((q.loc[q["quantity"] < 2, "qty_level"] == "low").all())),
+                  (True, True))
     else:
-        check_eq("add_qty_level", None, "high/medium/low")
+        check_eq("add_qty_level (high判断, low判断)", None, (True, True))
 
     ic = add_is_completed_flag(orders.copy()) if orders is not None else None
     if ic is not None:

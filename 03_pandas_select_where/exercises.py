@@ -90,8 +90,8 @@ if __name__ == "__main__":
     check_eq("distinct_status_sorted", ds, sorted(ref["status"].unique().tolist()))
 
     top3 = top_n_by_quantity(orders, 3) if orders is not None else None
-    check_eq("top_n_by_quantity 行数", len(top3) if top3 is not None else None, 3)
-    check_eq("top_n_by_quantity 第一行是最大值",
-              top3["quantity"].iloc[0] if top3 is not None else None, ref["quantity"].max())
+    check_eq("top_n_by_quantity (行数, 第一行的quantity)",
+              (len(top3), top3["quantity"].iloc[0]) if top3 is not None else None,
+              (3, ref["quantity"].max()))
 
     summary()
