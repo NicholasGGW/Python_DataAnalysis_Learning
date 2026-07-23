@@ -5,12 +5,13 @@ import sys
 
 import pandas as pd
 
+# 下面这行是固定的准备代码(把项目根目录加进来好载入校验工具),照抄即可,不是本章知识点
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from _check_utils import DATA_DIR, check_eq, summary  # noqa: E402
+from _check_utils import check_eq, summary  # noqa: E402
 
 
 def load_orders():
-    return pd.read_csv(os.path.join(DATA_DIR, "orders.csv"))
+    return pd.read_csv("data/orders.csv")
 
 
 def select_columns(orders):
@@ -45,7 +46,7 @@ if __name__ == "__main__":
     orders = load_orders()
     check_eq("load_orders 类型", type(orders).__name__, "DataFrame")
 
-    ref = pd.read_csv(os.path.join(DATA_DIR, "orders.csv"))
+    ref = pd.read_csv("data/orders.csv")
 
     cols = select_columns(orders)
     check_eq("select_columns 列名", list(cols.columns), ["order_id", "quantity"])

@@ -15,7 +15,9 @@
 import os
 import random
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
+# 把工作目录切到本文件所在的项目根目录,这样练习里用相对路径
+# pd.read_csv("data/xxx.csv") 无论从哪个目录运行都能读到数据(对学员透明,不用管)。
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 _total = 0
 _passed = 0
