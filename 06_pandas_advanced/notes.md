@@ -88,4 +88,56 @@ orders["diff_from_avg"] = orders["quantity"] - orders["group_avg"]
 orders["rank"] = orders["quantity"].rank(ascending=False, method="min")
 ```
 
+## 4. 新增列 / 删除列 / 改类型
+
+```python
+orders["amount"] = orders["quantity"] * 10        # 新增一列(基于已有列计算)
+orders = orders.drop(columns=["amount"])           # 删除列
+orders["order_date"] = pd.to_datetime(orders["order_date"])  # 改成日期类型
+orders["quantity"] = orders["quantity"].astype(float)        # 改成小数类型
+```
+
+## 5. apply: 对每一行/每个值套用自定义逻辑
+
+当内置方法不够用时,可以用 `apply` 跑自己写的函数。能不用就不用(向量化更快),
+但它很灵活,像 SQL 里复杂的 `CASE WHEN` 兜底:
+
+```python
+def level(q):
+    if q >= 4:
+        return "high"
+    elif q >= 2:
+        return "medium"
+    return "low"
+
+orders["qty_level"] = orders["quantity"].apply(level)
+```
+
+## 6. 累计值(类似 SUM(...) OVER (ORDER BY ...))
+
+```python
+orders_sorted = orders.sort_values("order_date")
+orders_sorted["running_total"] = orders_sorted["quantity"].cumsum()  # 逐行累加
+```
+
+对应 SQL 的滑动累计:`SUM(quantity) OVER (ORDER BY order_date)`。
+
+## 7. 字符串列的常用处理(.str)
+
+字符串列有一整套 `.str` 方法,类似 SQL 的 `UPPER / LIKE / SUBSTRING`:
+
+```python
+customers["customer_name"].str.upper()             # 转大写,类似 UPPER()
+customers["customer_name"].str.contains("1")       # 是否包含,类似 LIKE '%1%'
+customers["customer_name"].str.replace("Customer", "客户")  # 替换
+```
+
+## 8. 数据导出(把结果存回文件)
+
+分析完想把结果保存下来,和 `read_csv` 相对:
+
+```python
+result.to_csv("data/result.csv", index=False)   # index=False 不把行号写进文件
+```
+
 去 `exercises.py` 练手,这是最后一章了。

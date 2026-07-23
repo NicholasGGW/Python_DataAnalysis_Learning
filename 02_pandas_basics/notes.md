@@ -51,5 +51,38 @@ customers["city"].nunique()   # 去重后有多少种,类似 SELECT COUNT(DISTIN
 customers.describe()          # 数值列的统计概览(均值、最大最小值等)
 ```
 
+## 6. Series 和 DataFrame 的区别
+
+pandas 里有两种核心结构,分清楚它们后面会少踩很多坑:
+
+- **Series**: 一列数据(带一个"行标签"索引),取单列 `customers["city"]` 得到的就是 Series。
+- **DataFrame**: 一张二维表(多列),取多列 `customers[["customer_id", "city"]]` 得到的还是 DataFrame。
+
+一个记忆点: **一个方括号取一列(Series),两个方括号取多列(DataFrame)**。
+
+## 7. 每列的常用小统计
+
+针对某一列(Series)可以直接算:
+
+```python
+customers["city"].value_counts()   # 每个城市各有几个客户,类似 GROUP BY city COUNT(*)
+customers["city"].unique()         # 有哪些不同的城市(数组)
+customers["signup_date"].min()     # 最早的注册时间,类似 MIN(signup_date)
+customers["signup_date"].max()     # 最晚的,类似 MAX(signup_date)
+```
+
+`value_counts()` 特别常用,一行就能看"某列各取值的分布",相当于:
+
+```sql
+SELECT city, COUNT(*) FROM customers GROUP BY city ORDER BY COUNT(*) DESC;
+```
+
+## 8. 改列名 / 看有没有空值
+
+```python
+customers.rename(columns={"city": "城市"})   # 改列名,类似 SELECT city AS 城市
+customers.isna().sum()                       # 每列有多少个空值(NULL),排查数据质量必用
+```
+
 看完去 `exercises.py` 练手,数据用的是 `data/customers.csv`、`data/products.csv`、`data/orders.csv`,
 运行 `python data/generate_data.py` 生成(如果还没生成过)。

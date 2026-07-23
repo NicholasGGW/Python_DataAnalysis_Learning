@@ -34,22 +34,28 @@
     color: var(--fg); background: var(--bg);
   }
   #sidebar {
-    width: 230px; flex-shrink: 0; background: var(--sidebar-bg);
+    width: 240px; flex-shrink: 0; background: var(--sidebar-bg);
     border-right: 1px solid var(--border); padding: 16px 8px; overflow-y: auto;
   }
   #sidebar h1 { font-size: 15px; padding: 0 8px 12px; }
   #sidebar button {
-    display: block; width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 4px;
+    display: flex; justify-content: space-between; align-items: center; gap: 6px;
+    width: 100%; text-align: left; padding: 8px 10px; margin-bottom: 4px;
     border: none; background: transparent; border-radius: 6px; cursor: pointer;
     font-size: 13px; color: var(--fg);
   }
   #sidebar button:hover { background: var(--hover); }
   #sidebar button.active { background: var(--accent); color: #fff; }
+  #sidebar .ch-prog { font-size: 11px; opacity: .85; white-space: nowrap; }
   #main { flex: 1; display: flex; overflow: hidden; }
-  #notes {
-    flex: 1; overflow-y: auto; padding: 24px 32px; max-width: 55%;
+
+  /* 中间"笔记 + 交互框"一栏,可整体收起 */
+  #notes-col {
+    flex: 1; max-width: 55%; min-width: 0; display: flex; flex-direction: column;
     border-right: 1px solid var(--border);
   }
+  body.notes-collapsed #notes-col { display: none; }
+  #notes { flex: 1; overflow-y: auto; padding: 24px 32px; }
   #notes h1 { font-size: 22px; margin: 0 0 16px; }
   #notes h2 { font-size: 17px; margin: 24px 0 8px; padding-top: 12px; border-top: 1px solid var(--border); }
   #notes p, #notes li { font-size: 14px; line-height: 1.7; margin: 8px 0; }
@@ -63,6 +69,40 @@
   #notes table { border-collapse: collapse; margin: 10px 0; font-size: 13px; }
   #notes th, #notes td { border: 1px solid var(--border); padding: 6px 12px; }
   #notes th { background: var(--code-bg); }
+
+  /* 交互框(REPL): 敲一行回车运行 */
+  #repl {
+    flex-shrink: 0; height: 230px; display: flex; flex-direction: column;
+    border-top: 2px solid var(--border); background: var(--output-bg); color: var(--output-fg);
+  }
+  body.repl-collapsed #repl { height: auto; }
+  body.repl-collapsed #repl-log, body.repl-collapsed #repl-inputline { display: none; }
+  #repl-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    padding: 6px 10px; font-size: 12px; cursor: pointer;
+    background: var(--toolbar-bg); color: var(--fg); border-bottom: 1px solid var(--border);
+  }
+  #repl-head button {
+    border: 1px solid var(--border); background: transparent; color: var(--fg);
+    border-radius: 5px; padding: 2px 8px; font-size: 11px; cursor: pointer;
+  }
+  #repl-log {
+    flex: 1; overflow-y: auto; padding: 8px 10px; white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px; line-height: 1.5;
+  }
+  #repl-log .repl-echo { color: #9aa4b2; }
+  #repl-log .repl-val { color: #7ee787; }
+  #repl-log .repl-err { color: #ff7b72; }
+  #repl-inputline {
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    border-top: 1px solid var(--border);
+  }
+  .repl-prompt { color: #7ee787; font-family: ui-monospace, monospace; font-weight: 600; }
+  #repl-input {
+    flex: 1; border: 0; outline: 0; background: transparent; color: var(--output-fg);
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px;
+  }
+
   #playground { flex: 1; display: flex; flex-direction: column; min-width: 40%; }
   #toolbar {
     padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--toolbar-bg);
@@ -80,15 +120,13 @@
   /* ---------- 带语法高亮的编辑器(透明 textarea 叠在高亮层上) ---------- */
   #editor-wrap {
     flex: 1; position: relative; overflow: hidden; background: var(--editor-bg);
-    min-height: 200px;
+    min-height: 180px;
   }
   #highlight, #editor {
     margin: 0; border: 0; padding: 12px; box-sizing: border-box;
     font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace;
     font-size: 13px; line-height: 1.6; letter-spacing: normal;
-    /* 不自动换行,长行两层一起横向滚动,保证输入层和高亮层逐字对齐 */
-    white-space: pre; word-wrap: normal; overflow-wrap: normal;
-    tab-size: 4;
+    white-space: pre; word-wrap: normal; overflow-wrap: normal; tab-size: 4;
   }
   #highlight {
     position: absolute; inset: 0; overflow: auto; pointer-events: none;
@@ -98,7 +136,6 @@
     position: absolute; inset: 0; overflow: auto; resize: none; outline: none;
     background: transparent; color: transparent; caret-color: var(--fg);
   }
-  /* 语法高亮配色 */
   .tok-kw  { color: var(--tok-kw);  font-weight: 600; }
   .tok-str { color: var(--tok-str); }
   .tok-com { color: var(--tok-com); font-style: italic; }
@@ -108,41 +145,41 @@
   .tok-def { color: var(--tok-def); font-weight: 600; }
 
   #output {
-    height: 40%; overflow-y: auto; background: var(--output-bg); color: var(--output-fg);
+    height: 34%; overflow-y: auto; background: var(--output-bg); color: var(--output-fg);
     font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12.5px;
     padding: 12px; white-space: pre-wrap; border-top: 2px solid var(--border);
   }
   #output .err { color: #ff7b72; }
   #output .pass { color: #7ee787; }
   #output .fail { color: #ff7b72; }
-  #coin-count {
+  #star-count {
     font-size: 13px; font-weight: 600; color: #9a6700; background: #fff8c5;
-    border: 1px solid #d4a72c66; border-radius: 999px; padding: 3px 10px;
+    border: 1px solid #d4a72c66; border-radius: 999px; padding: 3px 10px; white-space: nowrap;
   }
-  :root[data-theme="dark"] #coin-count { color: #e3b341; background: #2d2205; border-color: #bb800955; }
-  /* ---------- 赛利亚 ---------- */
+  :root[data-theme="dark"] #star-count { color: #e3b341; background: #2d2205; border-color: #bb800955; }
+
+  /* ---------- 赛利亚(挪到右下角,避免压住左边的交互框) ---------- */
   #mascot {
-    position: fixed; left: 12px; bottom: 10px; width: 206px; z-index: 60;
+    position: fixed; right: 14px; bottom: 8px; width: 188px; z-index: 60;
     pointer-events: none; text-align: center;
   }
   #bubble {
     background: var(--bg); border: 2px solid #f2a5c0; border-radius: 12px;
     padding: 8px 10px; font-size: 12.5px; line-height: 1.5; color: var(--fg);
-    box-shadow: 0 4px 12px rgba(0,0,0,.12); margin-bottom: 6px; position: relative;
-    text-align: left;
+    box-shadow: 0 4px 12px rgba(0,0,0,.12); margin-bottom: 6px; position: relative; text-align: left;
   }
   #bubble::after {
-    content: ""; position: absolute; bottom: -8px; left: 50%; margin-left: -6px;
+    content: ""; position: absolute; bottom: -8px; right: 40px; margin-left: -6px;
     border: 6px solid transparent; border-top-color: #f2a5c0; border-bottom: none;
   }
-  #mascot svg { width: 96px; height: auto; filter: drop-shadow(0 3px 6px rgba(0,0,0,.15)); }
+  #mascot svg { width: 84px; height: auto; filter: drop-shadow(0 3px 6px rgba(0,0,0,.15)); }
   #mascot.celebrate svg { animation: bounce .5s ease 2; }
   @keyframes bounce {
     0%, 100% { transform: translateY(0); }
     40% { transform: translateY(-14px) rotate(-3deg); }
     70% { transform: translateY(0) scale(1.05, .95); }
   }
-  .coin {
+  .star-fx {
     position: fixed; font-size: 24px; z-index: 99; pointer-events: none;
     left: 0; top: 0; will-change: transform, opacity;
   }
@@ -156,17 +193,33 @@
 </nav>
 
 <div id="main">
-  <article id="notes">加载中...</article>
+  <div id="notes-col">
+    <article id="notes">加载中...</article>
+    <div id="repl">
+      <div id="repl-head" title="点这里收起/展开交互框">
+        <span>🐍 试一试 · 敲一行 Python 回车运行</span>
+        <span><button id="repl-clear" type="button">清空</button></span>
+      </div>
+      <div id="repl-log">环境加载好后,可以在下面敲 print("hello") 回车试试。</div>
+      <div id="repl-inputline">
+        <span class="repl-prompt">&gt;&gt;&gt;</span>
+        <input id="repl-input" spellcheck="false" autocapitalize="off" autocomplete="off"
+               placeholder="环境加载中…" disabled>
+      </div>
+    </div>
+  </div>
+
   <section id="playground">
     <div id="toolbar">
+      <button id="toggle-notes-btn" title="收起/展开左侧笔记栏">📖 收起笔记</button>
       <button id="run-btn" disabled>▶ 运行</button>
-      <button id="exercise-btn" title="把本章 exercises.py 载入编辑器,补全 TODO 后运行,做对就爆金币!">📘 载入本章练习</button>
+      <button id="exercise-btn" title="把本章 exercises.py 载入编辑器,补全 TODO 后运行,做对就点亮星星!">📘 载入本章练习</button>
       <button id="reset-btn">示例代码</button>
       <button id="export-btn" title="把所有章节写的答案导出成一个 JSON 文件备份">⬇ 导出答案</button>
       <button id="import-btn" title="从导出的 JSON 恢复答案(换电脑时用)">⬆ 导入答案</button>
       <input id="import-file" type="file" accept="application/json,.json" style="display:none">
       <button id="theme-btn" title="切换白天/暗黑模式">🌙</button>
-      <span id="coin-count">💰 0</span>
+      <span id="star-count" title="本章星星进度,做对全部题 = 本章过关">⭐ 0</span>
       <span id="status">正在加载 Python 运行环境(首次约 10~30 秒)...</span>
     </div>
     <div id="editor-wrap">
@@ -180,32 +233,22 @@
 <div id="mascot">
   <div id="bubble">欢迎回来,勇士!</div>
   <svg viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg" aria-label="赛利亚">
-    <!-- 后发 -->
     <path d="M60 6 C26 6 16 34 19 62 C21 82 12 100 22 108 C31 114 39 102 39 90 L81 90 C81 102 89 114 98 108 C108 100 99 82 101 62 C104 34 94 6 60 6 Z" fill="#f78fb3"/>
-    <!-- 双马尾 -->
     <path d="M20 70 C8 78 6 100 14 116 C20 108 22 92 24 84 Z" fill="#f78fb3"/>
     <path d="M100 70 C112 78 114 100 106 116 C100 108 98 92 96 84 Z" fill="#f78fb3"/>
-    <!-- 脸 -->
     <ellipse cx="60" cy="54" rx="27" ry="25" fill="#ffe9dc"/>
-    <!-- 刘海 -->
     <path d="M33 52 C33 26 45 14 60 14 C75 14 87 26 87 52 C82 40 76 32 60 32 C44 32 38 40 33 52 Z" fill="#fa9db9"/>
-    <!-- 头饰 -->
     <path d="M38 20 C46 12 74 12 82 20 C74 16 46 16 38 20 Z" fill="#fff" stroke="#eee"/>
     <circle cx="60" cy="13" r="4" fill="#fff"/>
-    <!-- 眼睛 -->
     <ellipse cx="49" cy="56" rx="4.5" ry="6" fill="#5b4636"/>
     <ellipse cx="71" cy="56" rx="4.5" ry="6" fill="#5b4636"/>
     <circle cx="50.5" cy="53.5" r="1.6" fill="#fff"/>
     <circle cx="72.5" cy="53.5" r="1.6" fill="#fff"/>
-    <!-- 腮红 -->
     <ellipse cx="42" cy="64" rx="4" ry="2.5" fill="#ffc4cc"/>
     <ellipse cx="78" cy="64" rx="4" ry="2.5" fill="#ffc4cc"/>
-    <!-- 微笑 -->
     <path d="M55 68 Q60 72 65 68" stroke="#c96" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-    <!-- 身体: 裙子 + 围裙 -->
     <path d="M45 88 L75 88 L84 128 L36 128 Z" fill="#4a5a8a"/>
     <path d="M50 90 L70 90 L75 122 L45 122 Z" fill="#fff"/>
-    <!-- 手 -->
     <circle cx="38" cy="104" r="5" fill="#ffe9dc"/>
     <circle cx="82" cy="104" r="5" fill="#ffe9dc"/>
   </svg>
@@ -213,6 +256,7 @@
 
 <script>
 const CHAPTERS = [
+  { dir: "00_intro",                 title: "0. Python 入门" },
   { dir: "01_numpy",                 title: "1. numpy 基础" },
   { dir: "02_pandas_basics",         title: "2. pandas 基础" },
   { dir: "03_pandas_select_where",   title: "3. SELECT / WHERE" },
@@ -220,8 +264,18 @@ const CHAPTERS = [
   { dir: "05_pandas_join_union",     title: "5. JOIN / UNION" },
   { dir: "06_pandas_advanced",       title: "6. CASE WHEN / NULL / 开窗" },
 ];
+// 没有判分练习题的章节(纯讲解 + 交互框)
+const NO_EXERCISE = new Set(["00_intro"]);
 
 const STARTER = {
+  "00_intro": `# 这里可以随便敲 Python,点"运行"看结果
+# (也可以用左下角的"试一试"交互框,敲一行回车立刻出结果)
+print("你好, Python!")
+print(3 + 5)
+
+name = "勇士"
+print("欢迎你,", name)
+`,
   "01_numpy": `import numpy as np
 
 prices = np.array([9.9, 199.0, 599.0, 15.0, 120.5])
@@ -300,7 +354,7 @@ function renderMarkdown(md) {
   };
   while (i < lines.length) {
     const line = lines[i];
-    if (line.startsWith("```")) {                     // 代码块
+    if (line.startsWith("```")) {
       flushPara();
       const code = [];
       i++;
@@ -309,13 +363,13 @@ function renderMarkdown(md) {
       out.push("<pre><code>" + escapeHtml(code.join("\n")) + "</code></pre>");
       continue;
     }
-    const h = line.match(/^(#{1,6})\s+(.*)$/);        // 标题
+    const h = line.match(/^(#{1,6})\s+(.*)$/);
     if (h) {
       flushPara();
       out.push(`<h${h[1].length}>` + renderInline(h[2]) + `</h${h[1].length}>`);
       i++; continue;
     }
-    if (/^\|/.test(line) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {  // 表格
+    if (/^\|/.test(line) && /^\|[\s:|-]+\|$/.test(lines[i + 1] || "")) {
       flushPara();
       const cells = (l) => l.split("|").slice(1, -1).map((c) => c.trim());
       let html = "<table><tr>" + cells(line).map((c) => `<th>${renderInline(c)}</th>`).join("") + "</tr>";
@@ -327,7 +381,7 @@ function renderMarkdown(md) {
       out.push(html + "</table>");
       continue;
     }
-    if (/^[-*]\s+/.test(line)) {                      // 无序列表
+    if (/^[-*]\s+/.test(line)) {
       flushPara();
       let html = "<ul>";
       while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
@@ -356,7 +410,6 @@ const PY_BUILTINS = new Set([
   "sorted","enumerate","zip","map","filter","abs","round","type","bool","open","isinstance",
   "reversed","any","all","format","input",
 ]);
-// 一次扫描: 字符串/注释优先,然后数字、装饰器、标识符(关键字/内置/def后函数名)
 const PY_RE = /("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')|(#[^\n]*)|(\b\d+\.?\d*\b)|(@\w+)|([A-Za-z_]\w*)/g;
 function highlightPython(code) {
   let out = "", last = 0, m, prevWord = "";
@@ -381,16 +434,12 @@ function highlightPython(code) {
   return out;
 }
 function refreshHighlight() {
-  const code = $("editor").value;
-  // 高亮 HTML 直接写进 <pre>(不再套 <code>,避免浏览器 monospace 字号怪癖导致错位)
-  // 末尾补一个换行,保证最后一行的高亮层和 textarea 一样高
-  $("highlight").innerHTML = highlightPython(code) + "\n";
+  $("highlight").innerHTML = highlightPython($("editor").value) + "\n";
   syncScroll();
 }
 function syncScroll() {
   const ta = $("editor"), hl = $("highlight");
-  hl.scrollTop = ta.scrollTop;
-  hl.scrollLeft = ta.scrollLeft;
+  hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft;
 }
 function setEditorValue(v) {
   $("editor").value = v;
@@ -408,10 +457,7 @@ function saveBuffer() {
   localStorage.setItem(bufKey(currentChapter), $("editor").value);
   localStorage.setItem("lastChapter", currentChapter);
 }
-function debounce(fn, ms) {
-  let t;
-  return () => { clearTimeout(t); t = setTimeout(fn, ms); };
-}
+function debounce(fn, ms) { let t; return () => { clearTimeout(t); t = setTimeout(fn, ms); }; }
 const debouncedSave = debounce(saveBuffer, 400);
 
 // ---------- 主题切换 ----------
@@ -424,8 +470,7 @@ function applyTheme(theme) {
 function initTheme() {
   let theme = localStorage.getItem("theme");
   if (!theme) {
-    theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)
-      ? "dark" : "light";
+    theme = (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
   }
   applyTheme(theme);
 }
@@ -433,21 +478,52 @@ function initTheme() {
 let pyodide = null;
 let currentChapter = CHAPTERS[0].dir;
 
-// ---------- 金币系统 ----------
-let coins = parseInt(localStorage.getItem("coins") || "0", 10);
-function updateCoinCount() {
-  $("coin-count").textContent = "💰 " + coins;
-  localStorage.setItem("coins", String(coins));
+// ---------- 星星进度系统(第一次做对才点亮一颗,重复通过不再加) ----------
+const SOLVED_PREFIX = "solved:";
+const TOTAL_PREFIX = "total:";
+function solvedSet(dir) {
+  try { return new Set(JSON.parse(localStorage.getItem(SOLVED_PREFIX + dir) || "[]")); }
+  catch (e) { return new Set(); }
+}
+function saveSolved(dir, set) { localStorage.setItem(SOLVED_PREFIX + dir, JSON.stringify([...set])); }
+function chapterTotal(dir) { return parseInt(localStorage.getItem(TOTAL_PREFIX + dir) || "0", 10); }
+function setChapterTotal(dir, n) { localStorage.setItem(TOTAL_PREFIX + dir, String(n)); }
+
+// 把运行输出解析成 {题名: 是否通过}
+function parseResults(text) {
+  const res = {};
+  let cur = null;
+  for (const ln of text.split("\n")) {
+    const m = ln.match(/^\[(.+)\]$/);
+    if (m) { cur = m[1]; continue; }
+    if (cur && /^结果: Pass!/.test(ln)) { res[cur] = true; cur = null; }
+    else if (cur && /^结果: Failed\./.test(ln)) { res[cur] = false; cur = null; }
+  }
+  return res;
+}
+function updateStarDisplay() {
+  const total = chapterTotal(currentChapter), have = solvedSet(currentChapter).size;
+  const el = $("star-count");
+  if (NO_EXERCISE.has(currentChapter)) el.textContent = "⭐ 自由练习";
+  else if (total > 0) el.textContent = (have >= total ? "🏆 " : "⭐ ") + have + "/" + total;
+  else el.textContent = "⭐ " + have;
+}
+function refreshSidebarProgress() {
+  document.querySelectorAll(".ch-prog").forEach((el) => {
+    const dir = el.dataset.dir;
+    if (NO_EXERCISE.has(dir)) { el.textContent = ""; return; }
+    const total = chapterTotal(dir), have = solvedSet(dir).size;
+    if (total > 0) el.textContent = have >= total ? "🏆" : `${have}/${total}`;
+    else el.textContent = have > 0 ? `⭐${have}` : "";
+  });
 }
 
-function coinBurst(n) {
+function starBurst(n) {
   const rect = $("output").getBoundingClientRect();
-  const cx = rect.left + rect.width / 2;
-  const cy = rect.top + 40;
+  const cx = rect.left + rect.width / 2, cy = rect.top + 40;
   for (let i = 0; i < Math.min(n, 40); i++) {
     const el = document.createElement("div");
-    el.className = "coin";
-    el.textContent = "🪙";
+    el.className = "star-fx"; el.textContent = "⭐";
     document.body.appendChild(el);
     const dx = (Math.random() - 0.5) * 360;
     const peak = -(90 + Math.random() * 190);
@@ -455,72 +531,99 @@ function coinBurst(n) {
     const dur = 800 + Math.random() * 600;
     el.animate([
       { transform: `translate(${cx}px, ${cy}px) scale(.5)`, opacity: 1 },
-      { transform: `translate(${cx + dx * .6}px, ${cy + peak}px) scale(1.25) rotate(${rot * .5}deg)`,
-        opacity: 1, offset: .45 },
+      { transform: `translate(${cx + dx * .6}px, ${cy + peak}px) scale(1.25) rotate(${rot * .5}deg)`, opacity: 1, offset: .45 },
       { transform: `translate(${cx + dx}px, ${cy + 180}px) scale(.8) rotate(${rot}deg)`, opacity: 0 },
-    ], { duration: dur, easing: "cubic-bezier(.2,.7,.4,1)", delay: i * 25 })
-      .onfinish = () => el.remove();
+    ], { duration: dur, easing: "cubic-bezier(.2,.7,.4,1)", delay: i * 25 }).onfinish = () => el.remove();
   }
 }
-
-function coinSound(times) {
+function chime(times) {
   try {
-    coinSound.ctx = coinSound.ctx || new (window.AudioContext || window.webkitAudioContext)();
-    const ctx = coinSound.ctx;
+    chime.ctx = chime.ctx || new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = chime.ctx;
     for (let i = 0; i < Math.min(times, 6); i++) {
       const t = ctx.currentTime + i * 0.1;
-      const o = ctx.createOscillator();
-      const g = ctx.createGain();
+      const o = ctx.createOscillator(), g = ctx.createGain();
       o.type = "square";
-      o.frequency.setValueAtTime(988, t);          // B5
-      o.frequency.setValueAtTime(1319, t + 0.07);  // E6 —— 经典"金币"两连音
+      o.frequency.setValueAtTime(988, t);
+      o.frequency.setValueAtTime(1319, t + 0.07);
       g.gain.setValueAtTime(0.08, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
-      o.connect(g).connect(ctx.destination);
-      o.start(t);
-      o.stop(t + 0.32);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.32);
     }
-  } catch (e) { /* 浏览器不允许自动播放时静默跳过 */ }
+  } catch (e) { /* 静默 */ }
 }
 
-// ---------- 赛利亚 ----------
+// ---------- 赛利亚(台词库,尽量多样) ----------
 const SERIA = {
   greet: [
     "欢迎回来,勇士!今天也一起攻略 pandas 吧!",
-    "勇士,准备好了吗?左边是秘籍,右边是修炼场!",
+    "勇士,准备好了吗?左边看讲解,右边写代码!",
     "又见面了,勇士!点『载入本章练习』开始今天的冒险吧!",
+    "上工啦!先读读左边的秘籍,不懂就用『试一试』敲两下。",
+    "新的一天,新的知识点!赛利亚陪你一起学~",
+    "别紧张,学不会很正常,多试几次就好啦!",
   ],
-  run: ["看你的了,勇士!", "深呼吸——运行!", "赛利亚在旁边看着呢,加油!"],
-  allPass: [
-    "全部通过!勇士,你就是传说中的数据分析师!",
-    "太漂亮了!这波操作赛利亚给满分!",
-    "完美通关!金币全部拿走,不用客气!",
+  run: [
+    "看你的了,勇士!", "深呼吸——运行!", "赛利亚在旁边看着呢,加油!",
+    "跑起来!看看会发生什么~", "提交!结果马上就出来。", "让我瞧瞧这次写得怎么样~",
+  ],
+  newStar: [
+    "叮!又点亮 {s} 颗星,进度 {have}/{total},继续!",
+    "漂亮!+{s} ⭐,这道题拿下了!",
+    "新星到手!已经 {have}/{total} 了,势不可挡!",
+    "又对了 {s} 题,星星离满还差 {left} 颗,冲!",
+    "手感来了!{have}/{total},下一颗星也是你的!",
+  ],
+  chapterClear: [
+    "🏆 满星通关!本章你彻底掌握了,勇士!",
+    "全部点亮!这一章被你拿下了,太强了!",
+    "恭喜过关!星星全满,可以去挑战下一章啦!",
+    "完美!本章 100% 达成,赛利亚为你骄傲!",
+  ],
+  allPassAgain: [
+    "全部都对!(这些星星你之前就点亮过啦~)",
+    "又全对了一遍,基本功很扎实嘛!",
+    "稳!全部通过,复习得不错。",
   ],
   somePass: [
     "已经对了 {p} 题了,剩下的也没问题的!",
     "离全部通过只差一点点,看看 Failed 那题的预期和实际!",
     "又进步了!翻翻左边的笔记,下一题也能拿下!",
+    "对了 {p} 题,稳扎稳打,继续!",
+    "不错的开局!剩下的题一道一道来。",
   ],
   allFail: [
     "别灰心,勇士!左边的笔记里藏着答案哦!",
     "万事开头难,赛利亚相信你!",
+    "先别急,把报错和预期/实际对一对,很快就通了。",
+    "一个都还没对没关系,先照着笔记的例子敲一遍试试!",
   ],
   error: [
     "呀,代码报错了……看看红色的提示,勇士你可以的!",
     "别怕报错,报错信息就是线索!从最后一行读起!",
+    "报错很正常,连老手都天天见~ 看看是不是括号或引号没配对。",
+    "红字不可怕,它在告诉你哪一行、哪里出了问题。",
   ],
-  plain: ["运行完成!想做题的话,点『载入本章练习』,做对有金币哦!"],
+  plain: [
+    "运行完成!想做题的话,点『载入本章练习』,做对能点亮星星哦!",
+    "跑通啦!随时可以去『试一试』交互框玩玩别的写法。",
+    "结果出来了~ 想挑战判分题就点『载入本章练习』。",
+  ],
+  intro: [
+    "这一章是热身!用『试一试』敲敲 print(),熟悉一下手感~",
+    "零基础也别怕,跟着左边的例子一行一行敲就好啦!",
+  ],
 };
 function seriaSay(kind, ctx = {}) {
   const pool = SERIA[kind] || SERIA.greet;
   let line = pool[Math.floor(Math.random() * pool.length)];
-  line = line.replace("{p}", ctx.p ?? "");
+  line = line.replace("{s}", ctx.s ?? "").replace("{p}", ctx.p ?? "")
+             .replace("{have}", ctx.have ?? "").replace("{total}", ctx.total ?? "")
+             .replace("{left}", ctx.left ?? "");
   $("bubble").textContent = line;
-  if (kind === "allPass" || kind === "somePass") {
+  if (kind === "newStar" || kind === "chapterClear" || kind === "allPassAgain") {
     const m = $("mascot");
-    m.classList.remove("celebrate");
-    void m.offsetWidth;   // 重新触发动画
-    m.classList.add("celebrate");
+    m.classList.remove("celebrate"); void m.offsetWidth; m.classList.add("celebrate");
   }
 }
 
@@ -529,8 +632,8 @@ function buildSidebar() {
   const list = $("chapter-list");
   CHAPTERS.forEach((ch) => {
     const btn = document.createElement("button");
-    btn.textContent = ch.title;
     btn.dataset.dir = ch.dir;
+    btn.innerHTML = `<span>${ch.title}</span><span class="ch-prog" data-dir="${ch.dir}"></span>`;
     btn.onclick = () => selectChapter(ch.dir);
     list.appendChild(btn);
   });
@@ -541,9 +644,9 @@ async function selectChapter(dir) {
   localStorage.setItem("lastChapter", dir);
   document.querySelectorAll("#chapter-list button").forEach((b) =>
     b.classList.toggle("active", b.dataset.dir === dir));
-  // 有存档就恢复上次写的内容,没有就载入示例模板
   const saved = loadBuffer(dir);
   setEditorValue(saved != null ? saved : (STARTER[dir] || ""));
+  updateStarDisplay();
   $("notes").innerHTML = "加载笔记中...";
   try {
     const resp = await fetch(`../${dir}/notes.md`);
@@ -556,12 +659,11 @@ async function selectChapter(dir) {
   }
 }
 
-// ---------- 输出 ----------
+// ---------- 主输出 ----------
 function appendOutput(text, cls) {
   const out = $("output");
   const span = document.createElement("span");
   if (cls) span.className = cls;
-  // 给校验结果加个颜色
   if (!cls && /^结果: Pass!/.test(text)) span.className = "pass";
   if (!cls && /^结果: Failed\./.test(text)) span.className = "fail";
   span.textContent = text + "\n";
@@ -569,7 +671,15 @@ function appendOutput(text, cls) {
   out.scrollTop = out.scrollHeight;
 }
 
+// ---------- 收起/展开笔记栏 ----------
+function applyNotesCollapsed(collapsed) {
+  document.body.classList.toggle("notes-collapsed", collapsed);
+  $("toggle-notes-btn").textContent = collapsed ? "📖 展开笔记" : "📖 收起笔记";
+  localStorage.setItem("notesCollapsed", collapsed ? "1" : "0");
+}
+
 // ---------- Pyodide ----------
+let replReady = false;
 async function initPyodide() {
   if (typeof loadPyodide === "undefined") {
     throw new Error("Pyodide 脚本未能从 CDN 加载,请检查网络后刷新页面(笔记阅读不受影响)");
@@ -578,53 +688,65 @@ async function initPyodide() {
   $("status").textContent = "正在加载 numpy / pandas ...";
   await pyodide.loadPackage(["numpy", "pandas"]);
 
-  // 用绝对路径把文件写进 Python 的工作目录 /home/pyodide,
-  // 保证 pd.read_csv("data/xxx.csv") 和命令行一致(否则相对写路径会落到别处,读不到)
   const HOME = "/home/pyodide";
   pyodide.FS.mkdirTree(HOME + "/data");
   for (const name of ["customers.csv", "products.csv", "orders.csv"]) {
     try {
       const resp = await fetch(`../data/${name}`);
       if (resp.ok) pyodide.FS.writeFile(`${HOME}/data/${name}`, await resp.text());
-    } catch (e) { /* 数据没生成时忽略,页面里会提示 */ }
+    } catch (e) { /* 忽略 */ }
   }
-
-  // 把校验工具也放进去,这样章节的 exercises.py 可以直接在网页里运行
   try {
     const resp = await fetch("../_check_utils.py");
     if (resp.ok) pyodide.FS.writeFile(`${HOME}/_check_utils.py`, await resp.text());
   } catch (e) { /* ignore */ }
 
-  // 固定工作目录到 /home/pyodide,并把它加进 sys.path:
-  //  - STARTER 示例直接 pd.read_csv("data/...") 靠 cwd 命中数据
-  //  - 练习的 from _check_utils import ... 能在这里找到校验工具
   pyodide.runPython("import os, sys\nos.chdir('/home/pyodide')\n" +
     "if '/home/pyodide' not in sys.path: sys.path.insert(0, '/home/pyodide')");
-  // exercises.py 里用到了 __file__,浏览器环境里预先定义好
   pyodide.globals.set("__file__", "/home/pyodide/exercises.py");
+
+  // 交互框(REPL)的执行器: 单独的命名空间,像真正的 >>> 一样返回表达式的值
+  pyodide.runPython([
+    "import sys as _sys, io as _io, traceback as _tb",
+    "_REPL_NS = {}",
+    "exec('import numpy as np\\nimport pandas as pd', _REPL_NS)",
+    "def _repl_run(src):",
+    "    _out = _io.StringIO(); _old = _sys.stdout; _sys.stdout = _out; _rep = None",
+    "    try:",
+    "        try:",
+    "            _val = eval(compile(src, '<repl>', 'eval'), _REPL_NS)",
+    "            if _val is not None: _rep = repr(_val)",
+    "        except SyntaxError:",
+    "            exec(compile(src, '<repl>', 'exec'), _REPL_NS)",
+    "    except Exception:",
+    "        _out.write(_tb.format_exc())",
+    "    finally:",
+    "        _sys.stdout = _old",
+    "    return [_out.getvalue(), _rep]",
+  ].join("\n"));
 
   pyodide.setStdout({ batched: (line) => appendOutput(line) });
   pyodide.setStderr({ batched: (line) => appendOutput(line, "err") });
 
+  replReady = true;
+  $("repl-input").disabled = false;
+  $("repl-input").placeholder = "在这里敲一行 Python,回车运行…";
   $("run-btn").disabled = false;
   $("status").textContent = "环境就绪 ✓ (Ctrl+Enter 运行)";
 }
 
 async function runCode() {
   if (!pyodide) return;
-  saveBuffer();   // 点运行即存一次答案
+  saveBuffer();
   $("output").textContent = "";
   $("run-btn").disabled = true;
   $("status").textContent = "运行中...";
   seriaSay("run");
   let hadError = false;
   try {
-    // 每次运行前重置校验计数,避免多次运行累加
     pyodide.runPython(
-      'import sys\n' +
-      'if "_check_utils" in sys.modules:\n' +
-      '    sys.modules["_check_utils"]._total = 0\n' +
-      '    sys.modules["_check_utils"]._passed = 0\n'
+      'import sys\nif "_check_utils" in sys.modules:\n' +
+      '    sys.modules["_check_utils"]._total = 0\n    sys.modules["_check_utils"]._passed = 0\n'
     );
     await pyodide.runPythonAsync($("editor").value);
     appendOutput("\n--- 运行完成 ---");
@@ -636,25 +758,80 @@ async function runCode() {
     $("status").textContent = "环境就绪 ✓ (Ctrl+Enter 运行)";
   }
 
-  // ---------- 正反馈: 数一数这次运行通过了几题 ----------
+  // ---------- 星星进度: 只有第一次做对才点亮 ----------
   const text = $("output").textContent;
-  const pass = (text.match(/结果: Pass!/g) || []).length;
-  const fail = (text.match(/结果: Failed\./g) || []).length;
-  if (pass > 0) {
-    coins += pass;
-    updateCoinCount();
-    coinBurst(pass * 4);
-    coinSound(pass);
+  const results = parseResults(text);
+  const names = Object.keys(results);
+
+  if (names.length === 0) {
+    // 没有判分输出(比如示例代码或入门章)
+    if (hadError) seriaSay("error");
+    else if (NO_EXERCISE.has(currentChapter)) seriaSay("intro");
+    else seriaSay("plain");
+    return;
   }
-  if (hadError) seriaSay("error");
-  else if (pass > 0 && fail === 0) seriaSay("allPass");
-  else if (pass > 0) seriaSay("somePass", { p: pass });
-  else if (fail > 0) seriaSay("allFail");
-  else seriaSay("plain");
+
+  setChapterTotal(currentChapter, names.length);
+  const solved = solvedSet(currentChapter);
+  let newStars = 0;
+  for (const n of names) {
+    if (results[n] && !solved.has(n)) { solved.add(n); newStars++; }
+  }
+  saveSolved(currentChapter, solved);
+  updateStarDisplay();
+  refreshSidebarProgress();
+
+  const total = names.length, have = solved.size;
+  const passNow = names.filter((n) => results[n]).length;
+
+  if (newStars > 0) {
+    starBurst(newStars * 5);
+    chime(newStars);
+    if (have >= total) seriaSay("chapterClear");
+    else seriaSay("newStar", { s: newStars, have, total, left: total - have });
+  } else if (hadError) {
+    seriaSay("error");
+  } else if (passNow === total) {
+    seriaSay("allPassAgain");
+  } else if (passNow > 0) {
+    seriaSay("somePass", { p: passNow });
+  } else {
+    seriaSay("allFail");
+  }
+}
+
+// ---------- 交互框(REPL) ----------
+const replHistory = [];
+let replHistIdx = 0;
+function replPrint(text, cls) {
+  const log = $("repl-log");
+  const span = document.createElement("span");
+  if (cls) span.className = cls;
+  span.textContent = text + "\n";
+  log.appendChild(span);
+  log.scrollTop = log.scrollHeight;
+}
+async function replRun(src) {
+  if (!src.trim()) return;
+  replPrint(">>> " + src, "repl-echo");
+  if (!replReady) { replPrint("环境还在加载,请稍候…", "repl-err"); return; }
+  try {
+    pyodide.globals.set("_repl_src", src);
+    const proxy = pyodide.runPython("_repl_run(_repl_src)");
+    const arr = proxy.toJs();
+    proxy.destroy();
+    const out = arr[0], rep = arr[1];
+    if (out) replPrint(out.replace(/\n$/, ""));
+    if (rep !== undefined && rep !== null) replPrint(rep, "repl-val");
+  } catch (e) {
+    replPrint(String(e), "repl-err");
+  }
 }
 
 // ---------- 事件 ----------
 $("run-btn").onclick = runCode;
+$("toggle-notes-btn").onclick = () =>
+  applyNotesCollapsed(!document.body.classList.contains("notes-collapsed"));
 $("reset-btn").onclick = () => {
   if (hasSavedAnswer(currentChapter) &&
       !confirm("这会用「示例代码」覆盖你在本章写的内容,确定吗?")) return;
@@ -664,6 +841,10 @@ $("reset-btn").onclick = () => {
 $("theme-btn").onclick = () =>
   applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
 $("exercise-btn").onclick = async () => {
+  if (NO_EXERCISE.has(currentChapter)) {
+    $("bubble").textContent = "本章是入门引子,没有判分练习~ 用左下角『试一试』或上面编辑器随便敲敲吧!";
+    return;
+  }
   if (hasSavedAnswer(currentChapter) &&
       !confirm("这会用「练习模板」覆盖你在本章写的内容,确定吗?")) return;
   try {
@@ -672,13 +853,13 @@ $("exercise-btn").onclick = async () => {
     setEditorValue(await resp.text());
     saveBuffer();
     seriaSay("greet");
-    $("bubble").textContent = "练习已载入!把 TODO 补全后点运行,做对一题掉一枚金币哦!";
+    $("bubble").textContent = "练习已载入!把 TODO 补全后点运行,第一次做对一题点亮一颗星哦!";
   } catch (e) {
     $("bubble").textContent = "练习加载失败了……确认服务器是在项目根目录启动的吗?";
   }
 };
 
-// ---------- 导出 / 导入答案 ----------
+// 导出 / 导入答案
 function collectAnswers() {
   const out = {};
   for (let i = 0; i < localStorage.length; i++) {
@@ -710,20 +891,19 @@ $("import-file").onchange = (e) => {
   reader.onload = () => {
     try {
       const parsed = JSON.parse(reader.result);
-      // 容错: 既支持 {type,answers:{...}} 也支持直接 {dir: code}
       const answers = parsed && parsed.answers ? parsed.answers : parsed;
       if (!answers || typeof answers !== "object") throw new Error("格式不对");
       if (!confirm("导入会覆盖你当前浏览器里已保存的答案,确定吗?")) return;
       Object.keys(answers).forEach((dir) => {
         if (typeof answers[dir] === "string") localStorage.setItem(ANSWER_PREFIX + dir, answers[dir]);
       });
-      const saved = loadBuffer(currentChapter);   // 刷新当前章节显示
+      const saved = loadBuffer(currentChapter);
       if (saved != null) setEditorValue(saved);
       $("bubble").textContent = "答案已导入!继续加油,勇士!";
     } catch (err) {
       $("bubble").textContent = "导入失败:这个文件不是有效的答案 JSON。";
     } finally {
-      e.target.value = "";   // 允许再次选同一个文件
+      e.target.value = "";
     }
   };
   reader.readAsText(file);
@@ -733,7 +913,7 @@ $("editor").addEventListener("input", () => { refreshHighlight(); debouncedSave(
 $("editor").addEventListener("scroll", syncScroll);
 $("editor").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runCode(); }
-  if (e.key === "Tab") {  // Tab 输入 4 个空格而不是跳出输入框
+  if (e.key === "Tab") {
     e.preventDefault();
     const t = e.target, s = t.selectionStart;
     t.value = t.value.slice(0, s) + "    " + t.value.slice(t.selectionEnd);
@@ -743,13 +923,35 @@ $("editor").addEventListener("keydown", (e) => {
   }
 });
 
+// REPL 事件
+$("repl-head").onclick = (e) => {
+  if (e.target.id === "repl-clear") return;
+  document.body.classList.toggle("repl-collapsed");
+};
+$("repl-clear").onclick = (e) => { e.stopPropagation(); $("repl-log").textContent = ""; };
+$("repl-input").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const v = e.target.value;
+    if (v.trim()) { replHistory.push(v); replHistIdx = replHistory.length; }
+    e.target.value = "";
+    replRun(v);
+  } else if (e.key === "ArrowUp") {
+    if (replHistIdx > 0) { replHistIdx--; e.target.value = replHistory[replHistIdx]; e.preventDefault(); }
+  } else if (e.key === "ArrowDown") {
+    if (replHistIdx < replHistory.length - 1) { replHistIdx++; e.target.value = replHistory[replHistIdx]; }
+    else { replHistIdx = replHistory.length; e.target.value = ""; }
+    e.preventDefault();
+  }
+});
+
 initTheme();
+applyNotesCollapsed(localStorage.getItem("notesCollapsed") === "1");
 buildSidebar();
-// 回到上次学习的章节(而不是每次都从第 1 章开始)
+refreshSidebarProgress();
 const lastChapter = localStorage.getItem("lastChapter");
 const startDir = CHAPTERS.some((c) => c.dir === lastChapter) ? lastChapter : CHAPTERS[0].dir;
 selectChapter(startDir);
-updateCoinCount();
 seriaSay("greet");
 initPyodide().catch((e) => { $("status").textContent = "环境加载失败: " + e; });
 </script>

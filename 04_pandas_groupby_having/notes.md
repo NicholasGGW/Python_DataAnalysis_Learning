@@ -78,4 +78,47 @@ grouped = orders.groupby("status").size().reset_index(name="cnt")
 grouped[grouped["cnt"] > 10]     # 这一步就相当于 HAVING
 ```
 
+## 6. 分组 + 排序: 每组的汇总再排个序
+
+分组聚合出结果后,想按某个指标排序(常见的"销量排行榜"),接着 `sort_values` 即可:
+
+```sql
+SELECT customer_id, SUM(quantity) AS total_qty
+FROM orders
+GROUP BY customer_id
+ORDER BY total_qty DESC;
+```
+```python
+(orders.groupby("customer_id")["quantity"].sum()
+       .reset_index(name="total_qty")
+       .sort_values("total_qty", ascending=False))
+```
+
+## 7. COUNT(DISTINCT ...): 每组里有多少个不同的值
+
+```sql
+SELECT status, COUNT(DISTINCT customer_id) AS n_customers
+FROM orders
+GROUP BY status;
+```
+```python
+orders.groupby("status")["customer_id"].nunique().reset_index(name="n_customers")
+```
+
+## 8. size() 和 count() 的区别(容易踩坑)
+
+- `groupby(...).size()`: 每组**多少行**,类似 `COUNT(*)`,**包含空值行**。
+- `groupby(...)["col"].count()`: 每组里 `col` **非空**的个数,类似 `COUNT(col)`,**不含 NULL**。
+
+```python
+orders.groupby("status").size()              # 每组行数(COUNT(*))
+orders.groupby("status")["quantity"].count() # 每组 quantity 非空的个数(COUNT(quantity))
+```
+
+## 9. 小提示: 分组结果的"索引"
+
+`groupby(...).agg(...)` 出来的结果,分组用的列会变成"索引"而不是普通列。
+想让它变回普通列(更像 SQL 的结果表),记得在后面接 `.reset_index()`——
+前面例子里几乎每个都用了它,原因就在这。
+
 去 `exercises.py` 练手。
