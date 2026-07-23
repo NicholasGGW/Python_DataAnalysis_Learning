@@ -83,10 +83,11 @@
     min-height: 200px;
   }
   #highlight, #editor {
-    margin: 0; border: 0; padding: 12px;
+    margin: 0; border: 0; padding: 12px; box-sizing: border-box;
     font-family: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace;
-    font-size: 13px; line-height: 1.6;
-    white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word;
+    font-size: 13px; line-height: 1.6; letter-spacing: normal;
+    /* 不自动换行,长行两层一起横向滚动,保证输入层和高亮层逐字对齐 */
+    white-space: pre; word-wrap: normal; overflow-wrap: normal;
     tab-size: 4;
   }
   #highlight {
@@ -161,13 +162,16 @@
       <button id="run-btn" disabled>▶ 运行</button>
       <button id="exercise-btn" title="把本章 exercises.py 载入编辑器,补全 TODO 后运行,做对就爆金币!">📘 载入本章练习</button>
       <button id="reset-btn">示例代码</button>
+      <button id="export-btn" title="把所有章节写的答案导出成一个 JSON 文件备份">⬇ 导出答案</button>
+      <button id="import-btn" title="从导出的 JSON 恢复答案(换电脑时用)">⬆ 导入答案</button>
+      <input id="import-file" type="file" accept="application/json,.json" style="display:none">
       <button id="theme-btn" title="切换白天/暗黑模式">🌙</button>
       <span id="coin-count">💰 0</span>
       <span id="status">正在加载 Python 运行环境(首次约 10~30 秒)...</span>
     </div>
     <div id="editor-wrap">
-      <pre id="highlight" aria-hidden="true"><code></code></pre>
-      <textarea id="editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
+      <pre id="highlight" aria-hidden="true"></pre>
+      <textarea id="editor" spellcheck="false" wrap="off" autocapitalize="off" autocomplete="off" autocorrect="off"></textarea>
     </div>
     <div id="output">这里显示运行结果。左边看笔记,上面写代码,点"运行"直接在浏览器里执行 Python。</div>
   </section>
@@ -378,8 +382,9 @@ function highlightPython(code) {
 }
 function refreshHighlight() {
   const code = $("editor").value;
+  // 高亮 HTML 直接写进 <pre>(不再套 <code>,避免浏览器 monospace 字号怪癖导致错位)
   // 末尾补一个换行,保证最后一行的高亮层和 textarea 一样高
-  $("highlight").firstChild.innerHTML = highlightPython(code) + "\n";
+  $("highlight").innerHTML = highlightPython(code) + "\n";
   syncScroll();
 }
 function syncScroll() {
@@ -393,6 +398,21 @@ function setEditorValue(v) {
   $("editor").scrollTop = 0;
   syncScroll();
 }
+
+// ---------- 答案持久化(整段存浏览器 localStorage,切章节/刷新都不丢) ----------
+const ANSWER_PREFIX = "answer:";
+function bufKey(dir) { return ANSWER_PREFIX + dir; }
+function hasSavedAnswer(dir) { return localStorage.getItem(bufKey(dir)) !== null; }
+function loadBuffer(dir) { return localStorage.getItem(bufKey(dir)); }
+function saveBuffer() {
+  localStorage.setItem(bufKey(currentChapter), $("editor").value);
+  localStorage.setItem("lastChapter", currentChapter);
+}
+function debounce(fn, ms) {
+  let t;
+  return () => { clearTimeout(t); t = setTimeout(fn, ms); };
+}
+const debouncedSave = debounce(saveBuffer, 400);
 
 // ---------- 主题切换 ----------
 function applyTheme(theme) {
@@ -518,9 +538,12 @@ function buildSidebar() {
 
 async function selectChapter(dir) {
   currentChapter = dir;
+  localStorage.setItem("lastChapter", dir);
   document.querySelectorAll("#chapter-list button").forEach((b) =>
     b.classList.toggle("active", b.dataset.dir === dir));
-  setEditorValue(STARTER[dir] || "");
+  // 有存档就恢复上次写的内容,没有就载入示例模板
+  const saved = loadBuffer(dir);
+  setEditorValue(saved != null ? saved : (STARTER[dir] || ""));
   $("notes").innerHTML = "加载笔记中...";
   try {
     const resp = await fetch(`../${dir}/notes.md`);
@@ -581,6 +604,7 @@ async function initPyodide() {
 
 async function runCode() {
   if (!pyodide) return;
+  saveBuffer();   // 点运行即存一次答案
   $("output").textContent = "";
   $("run-btn").disabled = true;
   $("status").textContent = "运行中...";
@@ -623,21 +647,81 @@ async function runCode() {
 
 // ---------- 事件 ----------
 $("run-btn").onclick = runCode;
-$("reset-btn").onclick = () => setEditorValue(STARTER[currentChapter] || "");
+$("reset-btn").onclick = () => {
+  if (hasSavedAnswer(currentChapter) &&
+      !confirm("这会用「示例代码」覆盖你在本章写的内容,确定吗?")) return;
+  setEditorValue(STARTER[currentChapter] || "");
+  saveBuffer();
+};
 $("theme-btn").onclick = () =>
   applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
 $("exercise-btn").onclick = async () => {
+  if (hasSavedAnswer(currentChapter) &&
+      !confirm("这会用「练习模板」覆盖你在本章写的内容,确定吗?")) return;
   try {
     const resp = await fetch(`../${currentChapter}/exercises.py`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     setEditorValue(await resp.text());
+    saveBuffer();
     seriaSay("greet");
     $("bubble").textContent = "练习已载入!把 TODO 补全后点运行,做对一题掉一枚金币哦!";
   } catch (e) {
     $("bubble").textContent = "练习加载失败了……确认服务器是在项目根目录启动的吗?";
   }
 };
-$("editor").addEventListener("input", refreshHighlight);
+
+// ---------- 导出 / 导入答案 ----------
+function collectAnswers() {
+  const out = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(ANSWER_PREFIX)) out[k.slice(ANSWER_PREFIX.length)] = localStorage.getItem(k);
+  }
+  return out;
+}
+$("export-btn").onclick = () => {
+  const answers = collectAnswers();
+  if (Object.keys(answers).length === 0) {
+    $("bubble").textContent = "现在还没有可导出的答案,先去写点代码吧!";
+    return;
+  }
+  const data = { type: "py-learning-answers", version: 1, answers };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "answers-backup.json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  $("bubble").textContent = "答案已导出!换电脑时用「⬆ 导入答案」读回来就行。";
+};
+$("import-btn").onclick = () => $("import-file").click();
+$("import-file").onchange = (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      // 容错: 既支持 {type,answers:{...}} 也支持直接 {dir: code}
+      const answers = parsed && parsed.answers ? parsed.answers : parsed;
+      if (!answers || typeof answers !== "object") throw new Error("格式不对");
+      if (!confirm("导入会覆盖你当前浏览器里已保存的答案,确定吗?")) return;
+      Object.keys(answers).forEach((dir) => {
+        if (typeof answers[dir] === "string") localStorage.setItem(ANSWER_PREFIX + dir, answers[dir]);
+      });
+      const saved = loadBuffer(currentChapter);   // 刷新当前章节显示
+      if (saved != null) setEditorValue(saved);
+      $("bubble").textContent = "答案已导入!继续加油,勇士!";
+    } catch (err) {
+      $("bubble").textContent = "导入失败:这个文件不是有效的答案 JSON。";
+    } finally {
+      e.target.value = "";   // 允许再次选同一个文件
+    }
+  };
+  reader.readAsText(file);
+};
+
+$("editor").addEventListener("input", () => { refreshHighlight(); debouncedSave(); });
 $("editor").addEventListener("scroll", syncScroll);
 $("editor").addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); runCode(); }
@@ -647,12 +731,16 @@ $("editor").addEventListener("keydown", (e) => {
     t.value = t.value.slice(0, s) + "    " + t.value.slice(t.selectionEnd);
     t.selectionStart = t.selectionEnd = s + 4;
     refreshHighlight();
+    debouncedSave();
   }
 });
 
 initTheme();
 buildSidebar();
-selectChapter(CHAPTERS[0].dir);
+// 回到上次学习的章节(而不是每次都从第 1 章开始)
+const lastChapter = localStorage.getItem("lastChapter");
+const startDir = CHAPTERS.some((c) => c.dir === lastChapter) ? lastChapter : CHAPTERS[0].dir;
+selectChapter(startDir);
 updateCoinCount();
 seriaSay("greet");
 initPyodide().catch((e) => { $("status").textContent = "环境加载失败: " + e; });
