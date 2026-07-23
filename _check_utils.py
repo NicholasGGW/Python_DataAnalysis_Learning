@@ -13,11 +13,28 @@
 """
 
 import os
+import random
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 _total = 0
 _passed = 0
+
+_SERIA_ALL_PASS = [
+    "干得漂亮,勇士!全部通过,下一章的冒险也拜托你了!",
+    "太厉害了!这波操作赛利亚给满分!",
+    "全部通过!勇士,你离传说中的数据分析师又近了一步!",
+    "完美通关!赛利亚为你骄傲!",
+]
+_SERIA_SOME_PASS = [
+    "已经通过 {p} 题了,剩下的也一定没问题的,加油勇士!",
+    "离全部通过只差一点点了!看看上面 Failed 的预期和实际,你能行的!",
+    "不错不错,又前进了一步!剩下的题回去翻翻 notes.md 吧!",
+]
+_SERIA_ALL_FAIL = [
+    "别灰心,勇士!先看看 notes.md 里的秘籍,再来挑战一次!",
+    "万事开头难,赛利亚相信你!从第一题开始,一道一道来!",
+]
 
 
 def check_eq(name, actual, expected):
@@ -45,7 +62,11 @@ def check_eq(name, actual, expected):
 def summary():
     print("=" * 40)
     print(f"通过 {_passed} / {_total} 题")
+    if _passed > 0:
+        print("✨ " + "💰" * min(_passed, 10) + f"  金币 x{_passed} 掉落!✨")
     if _passed == _total and _total > 0:
-        print("全部通过,可以进入下一章了。")
+        print(f"[赛利亚] {random.choice(_SERIA_ALL_PASS)}")
+    elif _passed > 0:
+        print(f"[赛利亚] {random.choice(_SERIA_SOME_PASS).format(p=_passed)}")
     else:
-        print("还有题没通过,回去看 notes.md 或者对照 solutions.py 修改。")
+        print(f"[赛利亚] {random.choice(_SERIA_ALL_FAIL)}")
