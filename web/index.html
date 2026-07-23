@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Python 数据分析学习(SQL 对照版)</title>
-<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<!-- Pyodide 由脚本动态加载: 优先用本地离线包 vendor/pyodide/,没有再退回 CDN -->
+
 <style>
   /* ---------- 主题变量: 白天/暗黑两套配色 ---------- */
   :root {
@@ -680,11 +681,37 @@ function applyNotesCollapsed(collapsed) {
 
 // ---------- Pyodide ----------
 let replReady = false;
-async function initPyodide() {
-  if (typeof loadPyodide === "undefined") {
-    throw new Error("Pyodide 脚本未能从 CDN 加载,请检查网络后刷新页面(笔记阅读不受影响)");
+const PYODIDE_CDN = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+const PYODIDE_LOCAL = "vendor/pyodide/";   // 本地离线包(用 tools/prepare_offline.py 下载)
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error("加载失败: " + src));
+    document.head.appendChild(s);
+  });
+}
+// 优先本地离线包,没有就退回 CDN;返回该用的 indexURL
+async function ensurePyodideScript() {
+  try {
+    await loadScript(PYODIDE_LOCAL + "pyodide.js");
+    $("status").textContent = "已找到本地离线包,正在初始化...";
+    return PYODIDE_LOCAL;
+  } catch (e) {
+    $("status").textContent = "未找到本地离线包,改从网络加载 Pyodide...";
+    await loadScript(PYODIDE_CDN + "pyodide.js");
+    return PYODIDE_CDN;
   }
-  pyodide = await loadPyodide();
+}
+
+async function initPyodide() {
+  const indexURL = await ensurePyodideScript();
+  if (typeof loadPyodide === "undefined") {
+    throw new Error("Pyodide 脚本未能加载(本地和 CDN 都失败)。可运行 tools/prepare_offline.py 准备离线包。");
+  }
+  pyodide = await loadPyodide({ indexURL });
   $("status").textContent = "正在加载 numpy / pandas ...";
   await pyodide.loadPackage(["numpy", "pandas"]);
 

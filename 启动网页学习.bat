@@ -11,17 +11,30 @@ echo.
 
 REM ---------- 1. 检测 Python ----------
 set "PY="
+
+REM 1a. 最优先: 项目自带的便携 Python(离线包,免安装)
+if exist "%~dp0runtime\win-python\python.exe" (
+    set "PY=%~dp0runtime\win-python\python.exe"
+    echo [1/3] 使用项目自带的便携 Python(离线包)
+    goto :run
+)
+
+REM 1b. 其次: 系统已装的 Python
 where python >nul 2>nul && set "PY=python"
 if not defined PY (
     where py >nul 2>nul && set "PY=py"
 )
 
 if defined PY (
-    echo [1/3] 已检测到 Python: !PY!
+    echo [1/3] 已检测到系统 Python: !PY!
     goto :run
 )
 
-echo [1/3] 未检测到 Python,准备自动安装...
+echo [1/3] 未检测到 Python。
+echo 提示: 想做到"离线开箱即用",可以先在有网的机器上双击 "准备离线包.bat",
+echo       它会把便携版 Python 和 Pyodide 下载进项目,之后拷到离线机器直接双击本文件即可。
+echo.
+echo 现在先尝试自动安装 Python...
 echo.
 
 REM ---------- 2. 优先用 winget 安装(Win10 较新版本自带) ----------
@@ -82,6 +95,11 @@ echo.
 echo ================================================
 echo   已启动!浏览器地址: http://localhost:8000/web/
 echo   学习结束后,关闭那个"Python 学习服务器"黑窗口即可停止。
+if exist "%~dp0web\vendor\pyodide\pyodide.js" (
+    echo   检测到本地 Pyodide 离线包,网页端将离线运行,无需联网。
+) else (
+    echo   提示: 网页端 Python 目前仍需联网下载 Pyodide;想完全离线请先跑 "准备离线包.bat"。
+)
 echo ================================================
 echo.
 pause
