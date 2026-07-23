@@ -6,55 +6,17 @@
 
 ## 怎么用这个项目
 
-1. 安装依赖:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. 先生成练习用的数据(会在 `data/` 目录下生成 3 张"表"的 CSV):
-   ```bash
-   python data/generate_data.py
-   ```
-3. 按顺序学习每一章:
-   - 先读该章目录下的 `notes.md`(概念 + SQL 对照 + 代码示例)
-   - 再打开 `exercises.py`,把标了 `# TODO` 的地方补全
-   - 补完后直接运行这个文件,脚本会自动校验你的答案对不对:
-     ```bash
-     python 02_pandas_basics/exercises.py
-     ```
-   - 卡住了就看同目录下的 `solutions.py` 参考答案(建议先自己写,写不出来再看)
+两种学习方式:**命令行**(适合装好 Python 的人)和 **网页学习模式**
+(推荐,尤其是 Python 小白,Windows 用户双击一个 bat 就能一键启动)。
 
-校验输出格式(每道题不管对错都会打印预期和实际,方便对照):
+👉 **详细的上手步骤都在 [使用方法.md](使用方法.md) 里,请先看那个文件。**
 
-```
-[ex3_filter_over_100]
-预期: [120.5, 199.0, 599.0]
-实际: [120.5, 199.0, 599.0]
-结果: Pass!
-```
+简单来说:
 
-## 网页学习模式(可选)
-
-不想开编辑器的话,可以直接在浏览器里边看笔记边写代码运行(基于 Pyodide,
-Python 真的跑在你的浏览器里,首次加载需要联网下载运行环境,约 10~30 秒):
-
-```bash
-# 在项目根目录启动一个静态服务器
-python -m http.server 8000
-```
-
-然后浏览器打开 <http://localhost:8000/web/> :
-左边是每章的笔记(SQL 对照),右边是代码编辑器和输出窗口,
-`data/` 下的三张表已经自动加载进去,`pd.read_csv("data/orders.csv")` 直接可用。
-快捷键 Ctrl+Enter 运行。
-
-网页里还有一套正反馈系统:
-
-- 点 **「载入本章练习」** 会把该章的 `exercises.py` 直接载入编辑器,
-  补全 TODO 后点运行,每做对一题掉一枚金币(有爆金币动画和音效),
-  金币数会一直累计(存在浏览器本地)
-- 左下角的 **赛利亚** 会根据你的运行结果说话:全对夸你,部分对鼓励你,
-  报错了教你看报错信息
-- 命令行里跑 `exercises.py` 也有同款金币掉落和赛利亚台词
+- 命令行: `pip install -r requirements.txt` → `python data/generate_data.py`
+  → 每章读 `notes.md`、补全 `exercises.py` 里的 `# TODO`、运行看校验、卡住看 `solutions.py`
+- 网页: Windows 双击 `启动网页学习.bat`;其他系统在根目录跑 `python -m http.server 8000`
+  再打开 <http://localhost:8000/web/>
 
 ## 学习顺序
 
