@@ -578,22 +578,30 @@ async function initPyodide() {
   $("status").textContent = "正在加载 numpy / pandas ...";
   await pyodide.loadPackage(["numpy", "pandas"]);
 
-  // 把练习数据写进虚拟文件系统,这样 pd.read_csv("data/xxx.csv") 和本地跑一致
-  pyodide.FS.mkdirTree("data");
+  // 用绝对路径把文件写进 Python 的工作目录 /home/pyodide,
+  // 保证 pd.read_csv("data/xxx.csv") 和命令行一致(否则相对写路径会落到别处,读不到)
+  const HOME = "/home/pyodide";
+  pyodide.FS.mkdirTree(HOME + "/data");
   for (const name of ["customers.csv", "products.csv", "orders.csv"]) {
     try {
       const resp = await fetch(`../data/${name}`);
-      if (resp.ok) pyodide.FS.writeFile(`data/${name}`, await resp.text());
+      if (resp.ok) pyodide.FS.writeFile(`${HOME}/data/${name}`, await resp.text());
     } catch (e) { /* 数据没生成时忽略,页面里会提示 */ }
   }
 
   // 把校验工具也放进去,这样章节的 exercises.py 可以直接在网页里运行
   try {
     const resp = await fetch("../_check_utils.py");
-    if (resp.ok) pyodide.FS.writeFile("_check_utils.py", await resp.text());
+    if (resp.ok) pyodide.FS.writeFile(`${HOME}/_check_utils.py`, await resp.text());
   } catch (e) { /* ignore */ }
+
+  // 固定工作目录到 /home/pyodide,并把它加进 sys.path:
+  //  - STARTER 示例直接 pd.read_csv("data/...") 靠 cwd 命中数据
+  //  - 练习的 from _check_utils import ... 能在这里找到校验工具
+  pyodide.runPython("import os, sys\nos.chdir('/home/pyodide')\n" +
+    "if '/home/pyodide' not in sys.path: sys.path.insert(0, '/home/pyodide')");
   // exercises.py 里用到了 __file__,浏览器环境里预先定义好
-  pyodide.globals.set("__file__", "exercises.py");
+  pyodide.globals.set("__file__", "/home/pyodide/exercises.py");
 
   pyodide.setStdout({ batched: (line) => appendOutput(line) });
   pyodide.setStderr({ batched: (line) => appendOutput(line, "err") });
