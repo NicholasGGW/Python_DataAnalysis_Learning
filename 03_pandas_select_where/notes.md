@@ -98,4 +98,49 @@ SELECT quantity AS qty FROM orders;
 orders.rename(columns={"quantity": "qty"})
 ```
 
+## 10. BETWEEN 区间筛选
+
+```sql
+SELECT * FROM orders WHERE quantity BETWEEN 2 AND 4;
+```
+```python
+orders[orders["quantity"].between(2, 4)]   # 含两端,和 SQL 的 BETWEEN 一样
+```
+
+## 11. 按日期筛选
+
+`order_date` 读进来是字符串,先转成日期类型,就能像 SQL 那样按时间比较:
+
+```python
+orders["order_date"] = pd.to_datetime(orders["order_date"])
+
+# SELECT * FROM orders WHERE order_date >= '2023-10-01'
+orders[orders["order_date"] >= "2023-10-01"]
+```
+
+## 12. .loc: 同时选行和选列
+
+前面 `orders[条件]` 是选行,`orders[["列"]]` 是选列。想**一步同时挑行又挑列**,用 `.loc`:
+
+```sql
+SELECT order_id, quantity FROM orders WHERE status = 'completed';
+```
+```python
+orders.loc[orders["status"] == "completed", ["order_id", "quantity"]]
+#          ↑ 行的条件                        ↑ 要哪几列
+```
+
+`.loc[行条件, 列名列表]` 逗号左边管行、右边管列,是 pandas 里非常高频的写法。
+
+## 13. 空值行的筛选(IS NULL)
+
+```sql
+SELECT * FROM customers WHERE city IS NULL;
+SELECT * FROM customers WHERE city IS NOT NULL;
+```
+```python
+customers[customers["city"].isna()]    # IS NULL
+customers[customers["city"].notna()]   # IS NOT NULL
+```
+
 好,概念讲完了,去 `exercises.py` 练手。

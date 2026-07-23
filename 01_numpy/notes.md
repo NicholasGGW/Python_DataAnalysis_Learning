@@ -133,4 +133,38 @@ np.sort(arr)              # 从小到大排序(返回新数组)
 np.sort(arr)[::-1]        # 从大到小([::-1] 表示倒序)
 ```
 
+## 12. 数据类型(dtype)
+
+数组里所有元素是同一种类型,`dtype` 能看/改类型:
+
+```python
+a = np.array([1, 2, 3])
+a.dtype                  # dtype('int64'),整数
+a.astype(float)          # 转成小数: [1. 2. 3.]
+```
+
+## 13. 处理缺失值 NaN
+
+numpy 用 `np.nan` 表示"缺失/空"。注意:含 NaN 的普通聚合会被"传染"成 NaN,
+要用 `nan*` 系列函数跳过缺失值:
+
+```python
+x = np.array([1.0, 2.0, np.nan, 4.0])
+x.mean()          # nan —— 被缺失值传染了
+np.nanmean(x)     # 2.333... —— 自动跳过 NaN
+np.isnan(x)       # [False False  True False] 哪些是缺失
+```
+
+这和 SQL 里聚合函数默认忽略 `NULL` 的行为类似(`AVG(col)` 会跳过 NULL)。
+
+## 14. 两数组按条件择一(np.where 的另一种用法)
+
+`np.where(条件, a, b)` 还能"逐元素在两个数组之间挑":
+
+```python
+a = np.array([1, 2, 3, 4])
+b = np.array([10, 20, 30, 40])
+np.where(a >= 3, a, b)   # a>=3 的位置取 a,否则取 b -> [10 20 3 4]
+```
+
 看完以上内容,去 `exercises.py` 把 10 道题的 TODO 填完,然后直接运行看校验结果。

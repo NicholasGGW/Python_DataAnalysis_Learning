@@ -83,4 +83,40 @@ pd.concat([
 # 如果想要 UNION ALL(不去重),去掉 drop_duplicates() 即可
 ```
 
+## 7. JOIN 之后看看哪些没匹配上(数据核对)
+
+`merge` 加上 `indicator=True`,会多出一列 `_merge` 标明每行来自哪边,
+排查"孤儿数据"特别好用:
+
+```python
+chk = orders.merge(customers, on="customer_id", how="left", indicator=True)
+chk["_merge"].value_counts()
+# both       -> 左右都匹配上
+# left_only  -> 只在 orders 里有(customers 里查无此人,即孤儿订单)
+```
+
+对应 SQL 里那种 `LEFT JOIN ... WHERE c.customer_id IS NULL` 找不匹配行的排查思路。
+
+## 8. 聚合 + JOIN 的常见组合
+
+真实分析里常常"先在一张表里分组汇总,再 JOIN 回另一张表"。比如"每个客户的下单总量,
+带上客户名":
+
+```sql
+SELECT c.customer_name, t.total_qty
+FROM (SELECT customer_id, SUM(quantity) AS total_qty FROM orders GROUP BY customer_id) t
+JOIN customers c ON t.customer_id = c.customer_id;
+```
+```python
+per_customer = (orders.groupby("customer_id")["quantity"]
+                      .sum().reset_index(name="total_qty"))
+per_customer.merge(customers, on="customer_id")[["customer_name", "total_qty"]]
+```
+
+## 9. 关于重复列名
+
+如果两张表除了关联键之外还有**同名的列**,merge 后 pandas 会自动加后缀
+`_x`(左表)和 `_y`(右表)区分。可以用 `suffixes=("_left", "_right")` 自定义,
+或者提前把不需要的列删掉 / 改名,避免混淆。
+
 去 `exercises.py` 练手。
