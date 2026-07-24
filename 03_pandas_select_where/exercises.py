@@ -49,7 +49,9 @@ def order_by_quantity_desc(orders):
 
 
 def distinct_status_sorted(orders):
-    """返回 status 列所有不重复的值,并且按字母顺序排好序,类型是 list。"""
+    """返回 status 列所有不重复的值,并且按字母顺序排好序。
+    提示: 使用 sorted(array数组/list列表) 方法,或新变量 array.sort() 排序。
+    """
     # TODO
     return None
 
